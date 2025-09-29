@@ -16,6 +16,16 @@ export interface Message {
     warning?: string
     violations?: string[]
   }
+  isComplete?: boolean
+  canContinue?: boolean
+  mode?: 'general' | 'school-record' // 메시지에 모드 정보 저장
+  metadata?: {
+    chunks: number
+    characters: number
+    model: string
+    maxTokens: number
+    timeout?: boolean
+  }
 }
 
 export interface UploadedFile {
@@ -119,7 +129,7 @@ export default function ChatInterface() {
     setUploadedFiles(prev => prev.filter(file => file.id !== fileId))
   }
 
-  const sendMessage = async (content: string, mode: 'general' | 'school-record' = 'general') => {
+  const sendMessage = async (content: string, mode: 'general' | 'school-record' = 'general', isContinuation: boolean = false) => {
     if (!content.trim() || isLoading) return
 
     const userMessage: Message = {
@@ -127,33 +137,26 @@ export default function ChatInterface() {
       content,
       role: 'user',
       timestamp: new Date(),
-      attachedFiles: uploadedFiles.length > 0 ? [...uploadedFiles] : undefined
+      attachedFiles: uploadedFiles.length > 0 ? [...uploadedFiles] : undefined,
+      mode: mode // 사용자 메시지에도 모드 저장
     }
 
     setMessages(prev => [...prev, userMessage])
     setIsLoading(true)
-    setIsAutoScrolling(true) // 새 메시지 시작 시 자동 스크롤 활성화
+    setIsAutoScrolling(true)
 
-    // 스트리밍 응답을 위한 빈 어시스턴트 메시지 추가
+    // 어시스턴트 메시지 추가
     const assistantMessageId = Date.now().toString() + '-assistant'
     const assistantMessage: Message = {
       id: assistantMessageId,
       content: '',
       role: 'assistant',
       timestamp: new Date(),
-      isStreaming: true
+      isStreaming: true,
+      mode: mode // 어시스턴트 메시지에도 모드 저장
     }
 
     setMessages(prev => [...prev, assistantMessage])
-
-    // 파일 내용을 포함한 메시지 생성
-    let enhancedContent = content
-    if (uploadedFiles.length > 0) {
-      const fileContents = uploadedFiles.map(file => 
-        `\n\n--- ${file.name} ---\n${file.content}\n--- 파일 끝 ---`
-      ).join('')
-      enhancedContent = `${content}${fileContents}`
-    }
 
     try {
       const response = await fetch('/api/chat', {
@@ -164,7 +167,6 @@ export default function ChatInterface() {
         body: JSON.stringify({
           messages: [...messages, userMessage].map(msg => {
             let msgContent = msg.content
-            // 각 메시지에 첨부된 파일 내용도 포함
             if (msg.attachedFiles && msg.attachedFiles.length > 0) {
               const fileContents = msg.attachedFiles.map(file => 
                 `\n\n--- ${file.name} ---\n${file.content}\n--- 파일 끝 ---`
@@ -176,7 +178,7 @@ export default function ChatInterface() {
               content: msgContent
             }
           }),
-          mode: mode // 선택된 모드 전달
+          mode: mode
         }),
       })
 
@@ -185,7 +187,6 @@ export default function ChatInterface() {
         const errorMessage = errorData.error || `서버 오류 (${response.status})`
         
         if (response.status === 401) {
-          // 인증 오류 - 로그인 페이지로 리다이렉트
           alert('로그인이 필요하거나 API 키가 유효하지 않습니다. 다시 로그인해 주세요.')
           window.location.href = '/login'
           return
@@ -196,88 +197,57 @@ export default function ChatInterface() {
         throw new Error(errorMessage)
       }
 
-      // 스트리밍 응답 처리
-      const reader = response.body?.getReader()
-      if (!reader) throw new Error('스트림을 읽을 수 없습니다.')
+      // 비스트리밍 응답 처리
+      const data = await response.json()
+      
+      console.log('📨 응답 받음:', {
+        contentLength: data.content?.length || 0,
+        isComplete: data.isComplete,
+        chunks: data.metadata?.chunks || 0,
+        timeout: data.metadata?.timeout
+      })
 
-      let accumulatedContent = ''
-      let chunkCount = 0
+      if (data.error) {
+        throw new Error(data.error)
+      }
 
-      console.log('🚀 스트리밍 시작')
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) {
-          console.log('✅ 스트리밍 완료!')
-          break
-        }
-
-        const chunk = new TextDecoder().decode(value)
-        const lines = chunk.split('\n')
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6)
-            if (data === '[DONE]') {
-              // 스트리밍 완료
-              console.log(`🏁 스트리밍 종료 신호 받음. 총 청크: ${chunkCount}, 총 내용 길이: ${accumulatedContent.length}`)
-              setMessages(prev => prev.map(msg => 
-                msg.id === assistantMessageId 
-                  ? { ...msg, isStreaming: false }
-                  : msg
-              ))
-              break
+      // 메시지 업데이트
+      setMessages(prev => prev.map(msg => 
+        msg.id === assistantMessageId 
+          ? { 
+              ...msg, 
+              content: data.content || '',
+              isStreaming: false,
+              isComplete: data.isComplete,
+              canContinue: !data.isComplete, // 불완전한 응답이면 계속 요청 가능
+              validation: data.validation,
+              metadata: data.metadata
             }
+          : msg
+      ))
 
-            try {
-              const parsed = JSON.parse(data)
-              if (parsed.content) {
-                chunkCount++
-                accumulatedContent += parsed.content
-                console.log(`📨 청크 ${chunkCount} 받음: "${parsed.content.slice(0, 30)}${parsed.content.length > 30 ? '...' : ''}" (현재 총 길이: ${accumulatedContent.length})`)
-                
-                // 실시간으로 메시지 업데이트
-                setMessages(prev => prev.map(msg => 
-                  msg.id === assistantMessageId 
-                    ? { ...msg, content: accumulatedContent }
-                    : msg
-                ))
-              }
-              if (parsed.warning && parsed.violations) {
-                // 학교생활기록부 검증 결과 처리
-                console.warn('⚠️ 학교생활기록부 기재 원칙 위반:', parsed.violations)
-                setMessages(prev => prev.map(msg => 
-                  msg.id === assistantMessageId 
-                    ? { 
-                        ...msg, 
-                        validation: {
-                          warning: parsed.warning,
-                          violations: parsed.violations
-                        }
-                      }
-                    : msg
-                ))
-              }
-              if (parsed.error) {
-                console.error('❌ API에서 에러 응답:', parsed.error)
-                throw new Error(parsed.error)
-              }
-            } catch (e) {
-              // JSON 파싱 오류 무시 (일부 청크는 불완전할 수 있음)
-              if (data !== '' && data !== '\n') {
-                console.warn('⚠️ JSON 파싱 오류 (무시됨):', data)
-              }
-            }
-          }
+      // 자동 연속 요청 비활성화 - 사용자가 수동으로 "계속 작성하기" 버튼을 클릭해야 함
+      if (!data.isComplete && data.content && data.content.length > 0) {
+        if (data.metadata?.timeout) {
+          console.log('🔄 타임아웃으로 인한 불완전한 응답 감지, 수동 연속 요청 대기 중...', { 
+            mode, 
+            timeout: data.metadata.timeout,
+            contentLength: data.content.length 
+          })
+        } else {
+          console.log('🔄 불완전한 응답 감지 (타임아웃 아님), 수동 연속 요청 대기 중...', { 
+            isComplete: data.isComplete, 
+            timeout: data.metadata?.timeout,
+            contentLength: data.content.length 
+          })
         }
       }
 
     } catch (error) {
-      console.error('❌ 스트리밍 에러:', error)
+      console.error('❌ API 에러:', error)
       
       let errorMessage = '죄송합니다. 오류가 발생했습니다. 다시 시도해 주세요.'
       
-      // HTTP 에러에 따른 구체적인 메시지
       if (error instanceof Error) {
         if (error.message.includes('429')) {
           errorMessage = 'API 사용량 한도를 초과했습니다. 잠시 후 다시 시도해주세요.'
@@ -293,15 +263,41 @@ export default function ChatInterface() {
           ? { 
               ...msg, 
               content: errorMessage,
-              isStreaming: false
+              isStreaming: false,
+              canContinue: false
             }
           : msg
       ))
     } finally {
       setIsLoading(false)
-      // 메시지 전송 후 업로드된 파일 목록 초기화
-      setUploadedFiles([])
+      // 메시지 전송 후 업로드된 파일 목록 초기화 (연속 요청이 아닌 경우에만)
+      if (!isContinuation) {
+        setUploadedFiles([])
+      }
     }
+  }
+
+  // 연속 요청 함수
+  const continueMessage = async (messageId: string, providedMode?: 'general' | 'school-record') => {
+    if (isLoading) return
+
+    // 메시지에서 모드 추출 (제공된 모드가 없으면)
+    let targetMode: 'general' | 'school-record' = 'general'
+    
+    if (providedMode) {
+      targetMode = providedMode
+    } else {
+      // messageId로 해당 메시지를 찾아서 모드 추출
+      const targetMessage = messages.find(msg => msg.id === messageId)
+      if (targetMessage && targetMessage.mode) {
+        targetMode = targetMessage.mode
+      }
+    }
+
+    console.log('🔄 연속 요청 시작:', { messageId, mode: targetMode })
+
+    // "계속 작성해주세요" 메시지 자동 전송 (간결하게 이어서 작성하도록 지시)
+    await sendMessage('위 내용에 이어서 간결하게 계속 작성해주세요.', targetMode, true)
   }
 
   const resetChat = () => {
@@ -464,7 +460,10 @@ export default function ChatInterface() {
             </div>
           </div>
         ) : (
-          <MessageList messages={messages} />
+          <MessageList 
+            messages={messages} 
+            onContinueMessage={continueMessage}
+          />
         )}
         <div ref={messagesEndRef} />
         

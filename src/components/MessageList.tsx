@@ -9,6 +9,7 @@ import Image from 'next/image'
 
 interface MessageListProps {
   messages: Message[]
+  onContinueMessage?: (messageId: string, mode?: 'general' | 'school-record') => void
 }
 
 function TypewriterText({ text, isStreaming }: { text: string, isStreaming?: boolean }) {
@@ -90,7 +91,7 @@ function TypewriterText({ text, isStreaming }: { text: string, isStreaming?: boo
   )
 }
 
-export default function MessageList({ messages }: MessageListProps) {
+export default function MessageList({ messages, onContinueMessage }: MessageListProps) {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
 
   const copyToClipboard = async (text: string, messageId: string) => {
@@ -202,6 +203,30 @@ export default function MessageList({ messages }: MessageListProps) {
                   />
                 </div>
 
+                {/* 계속 작성 버튼 (불완전한 응답인 경우) */}
+                {message.role === 'assistant' && message.canContinue && !message.isStreaming && onContinueMessage && (
+                  <div className="mt-4">
+                    <button
+                      onClick={() => onContinueMessage(message.id, message.mode)}
+                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    >
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      계속 작성하기
+                      {message.mode === 'school-record' && (
+                        <span className="ml-2 px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full">
+                          학생부
+                        </span>
+                      )}
+                    </button>
+                    <div className="mt-2 text-xs text-gray-500">
+                      💡 응답이 중단되었습니다. 위 버튼을 클릭하면 {message.mode === 'school-record' ? '학생부 모드로' : '일반 모드로'} 이어서 작성합니다.
+                    </div>
+                  </div>
+                )}
+
+                
                 {/* 학교생활기록부 검증 결과 표시 */}
                 {message.validation && message.validation.violations && message.validation.violations.length > 0 && (
                   <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
