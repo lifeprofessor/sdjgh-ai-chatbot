@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { maskApiKey } from '@/lib/api-key-utils'
 
+// 동적 라우트로 설정 (쿠키 사용으로 인해)
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     const session = getSession()

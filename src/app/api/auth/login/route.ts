@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from '@/lib/auth'
 import { createSession } from '@/lib/session'
 
+// 동적 라우트로 설정
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   try {
     const { name, password } = await request.json()

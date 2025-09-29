@@ -9,10 +9,8 @@ const nextConfig = {
   compress: true,
   // 프로덕션 최적화
   swcMinify: true,
-  // 실험적 기능 (성능 향상)
-  experimental: {
-    optimizeCss: true,
-  },
+  // API 라우트는 동적으로 처리
+  output: 'standalone',
 };
 
 export default nextConfig;

@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { deleteSession } from '@/lib/session'
 
+// 동적 라우트로 설정
+export const dynamic = 'force-dynamic'
+
 export async function POST() {
   try {
     // 세션 삭제

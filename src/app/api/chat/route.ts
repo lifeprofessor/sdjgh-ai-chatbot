@@ -3,6 +3,9 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createSchoolRecordSystemPrompt, validateSchoolRecord } from '@/utils/school-record-utils'
 import { getSession } from '@/lib/session'
 
+// 동적 라우트로 설정
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   try {
     // 세션 확인
