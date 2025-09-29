@@ -66,15 +66,26 @@ export async function POST(request: NextRequest) {
             user_id: session.id
           })
           
+          // 타임아웃을 위한 AbortController 사용
+          const abortController = new AbortController()
+          const timeoutId = setTimeout(() => {
+            abortController.abort()
+          }, 8000) // 8초 타임아웃
+
           const response = await anthropic.messages.create({
             model: 'claude-sonnet-4-20250514',
-            max_tokens: 4000,
+            max_tokens: 2000, // 토큰 수 줄여서 응답 시간 단축
             messages: processedMessages.map((msg: any) => ({
               role: msg.role === 'user' ? 'user' : (msg.role === 'system' ? 'user' : 'assistant'),
               content: msg.role === 'system' ? `[시스템 지침]\n${msg.content}` : msg.content
             })),
             stream: true
+          }, {
+            signal: abortController.signal // AbortController 신호 전달
           })
+
+          // 타임아웃 클리어
+          clearTimeout(timeoutId)
           
           console.log('✅ Claude API 응답 스트림 시작')
 
@@ -133,6 +144,12 @@ export async function POST(request: NextRequest) {
           })
           
           let errorMessage = 'AI 응답을 생성하는 중 오류가 발생했습니다.'
+          
+          // 타임아웃 및 중단 에러 처리
+          if (error.name === 'TimeoutError' || error.code === 'TIMEOUT' || error.name === 'AbortError') {
+            errorMessage = '응답 시간이 초과되었습니다. 더 짧은 질문으로 다시 시도해주세요.'
+            console.warn('⏰ API 타임아웃 또는 중단 발생')
+          }
           
           // 토큰 제한 관련 에러
           if (error.status === 400 && error.error?.type === 'invalid_request_error') {
