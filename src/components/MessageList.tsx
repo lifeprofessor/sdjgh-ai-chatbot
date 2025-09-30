@@ -227,6 +227,7 @@ export default function MessageList({ messages, onContinueMessage }: MessageList
                 )}
 
                 
+
                 {/* 학교생활기록부 검증 결과 표시 */}
                 {message.validation && message.validation.violations && message.validation.violations.length > 0 && (
                   <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">

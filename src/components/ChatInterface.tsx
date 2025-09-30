@@ -25,6 +25,11 @@ export interface Message {
     model: string
     maxTokens: number
     timeout?: boolean
+    estimatedInputTokens?: number
+    optimizationApplied?: boolean
+    originalMessageCount?: number
+    optimizedMessageCount?: number
+    isContinuation?: boolean
   }
 }
 
@@ -159,6 +164,10 @@ export default function ChatInterface() {
     setMessages(prev => [...prev, assistantMessage])
 
     try {
+      // 60초 timeout을 위한 AbortController 설정
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 60000) // 60초
+      
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -168,9 +177,11 @@ export default function ChatInterface() {
           messages: [...messages, userMessage].map(msg => {
             let msgContent = msg.content
             if (msg.attachedFiles && msg.attachedFiles.length > 0) {
-              const fileContents = msg.attachedFiles.map(file => 
-                `\n\n--- ${file.name} ---\n${file.content}\n--- 파일 끝 ---`
-              ).join('')
+              const fileContents = msg.attachedFiles.map(file => {
+                // 파일 내용 최적화 (2000자 제한)
+                const optimizedContent = optimizeFileContent(file.content, 2000)
+                return `\n\n--- ${file.name} ---\n${optimizedContent}\n--- 파일 끝 ---`
+              }).join('')
               msgContent = `${msg.content}${fileContents}`
             }
             return {
@@ -180,7 +191,10 @@ export default function ChatInterface() {
           }),
           mode: mode
         }),
+        signal: controller.signal
       })
+      
+      clearTimeout(timeoutId) // 성공적으로 응답받으면 timeout 해제
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
@@ -249,7 +263,9 @@ export default function ChatInterface() {
       let errorMessage = '죄송합니다. 오류가 발생했습니다. 다시 시도해 주세요.'
       
       if (error instanceof Error) {
-        if (error.message.includes('429')) {
+        if (error.name === 'AbortError') {
+          errorMessage = '응답 시간이 60초를 초과했습니다. 더 짧고 구체적인 질문으로 다시 시도해주세요.'
+        } else if (error.message.includes('429')) {
           errorMessage = 'API 사용량 한도를 초과했습니다. 잠시 후 다시 시도해주세요.'
         } else if (error.message.includes('401')) {
           errorMessage = 'API 키가 유효하지 않습니다. 설정을 확인해주세요.'
@@ -298,6 +314,46 @@ export default function ChatInterface() {
 
     // "계속 작성해주세요" 메시지 자동 전송 (간결하게 이어서 작성하도록 지시)
     await sendMessage('위 내용에 이어서 간결하게 계속 작성해주세요.', targetMode, true)
+  }
+
+  // 파일 내용 최적화 함수 (클라이언트용)
+  const optimizeFileContent = (content: string, maxLength: number = 2000): string => {
+    if (content.length <= maxLength) {
+      return content
+    }
+
+    // 중요한 섹션 우선 추출
+    const lines = content.split('\n')
+    const importantLines = []
+    const normalLines = []
+
+    for (const line of lines) {
+      if (line.includes('##') || line.includes('###') || 
+          line.includes('중요') || line.includes('핵심') ||
+          line.includes('필수') || line.includes('금지') ||
+          line.includes('목표') || line.includes('결과')) {
+        importantLines.push(line)
+      } else if (line.trim().length > 0) {
+        normalLines.push(line)
+      }
+    }
+
+    // 중요한 내용 우선, 나머지는 길이에 맞춰 추가
+    let result = importantLines.join('\n')
+    
+    for (const line of normalLines) {
+      if (result.length + line.length + 1 <= maxLength) {
+        result += '\n' + line
+      } else {
+        break
+      }
+    }
+
+    if (result.length < content.length) {
+      result += '\n\n[... 내용 일부 생략 ...]'
+    }
+
+    return result
   }
 
   const resetChat = () => {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { createSchoolRecordSystemPrompt, validateSchoolRecord } from '@/utils/school-record-utils'
+import { createSchoolRecordSystemPrompt, validateSchoolRecord, createOptimizedSchoolRecordPrompt, optimizeMessageContext, estimateTokens } from '@/utils/school-record-utils'
 import { getSession } from '@/lib/session'
 
 // 동적 라우트로 설정
@@ -48,27 +48,35 @@ export async function POST(request: NextRequest) {
     // 명시적으로 전달된 모드 확인
     const isSchoolRecordRequest = mode === 'school-record'
 
+    // 컨텍스트 윈도우 최적화
+    const optimizedMessages = optimizeMessageContext(messages, isSchoolRecordRequest, isContinuation)
+    
     // 학교생활기록부 요청인 경우 시스템 프롬프트 추가
-    let processedMessages = [...messages]
+    let processedMessages = [...optimizedMessages]
     if (isSchoolRecordRequest) {
-      const systemPrompt = createSchoolRecordSystemPrompt()
+      const systemPrompt = createOptimizedSchoolRecordPrompt(messages, isContinuation)
       processedMessages = [
         { role: 'system', content: systemPrompt },
-        ...messages
+        ...optimizedMessages
       ]
-      console.log('📋 학교생활기록부 전용 시스템 프롬프트 적용됨 (모드:', mode, ')')
+      console.log('📋 최적화된 학교생활기록부 프롬프트 적용됨 (모드:', mode, ', 연속:', isContinuation, ')')
     }
 
     // 연속 요청일 때는 토큰 수를 더 줄임
     const maxTokens = isContinuation ? 800 : 1500
     
+    // 토큰 사용량 추정
+    const estimatedInputTokens = estimateTokens(processedMessages)
+    
     console.log('📨 Claude API 요청 시작:', {
       model: 'claude-sonnet-4-20250514',
       max_tokens: maxTokens,
-      message_count: messages.length,
+      message_count: processedMessages.length,
+      estimated_input_tokens: estimatedInputTokens,
       user: session.name,
       user_id: session.id,
-      isContinuation: isContinuation
+      isContinuation: isContinuation,
+      optimization_applied: true
     })
 
     // 전체 응답을 수집하여 한 번에 반환
@@ -78,12 +86,12 @@ export async function POST(request: NextRequest) {
     let isComplete = false
 
     try {
-      // 8초 타임아웃 설정 (Vercel 10초 제한보다 2초 여유)
+      // 58초 타임아웃 설정 (Vercel 60초 제한보다 2초 여유)
       const abortController = new AbortController()
       const timeoutId = setTimeout(() => {
-        console.warn('⏰ 8초 타임아웃 도달, 응답 중단')
+        console.warn('⏰ 58초 타임아웃 도달, 응답 중단')
         abortController.abort()
-      }, 8000)
+      }, 58000)
 
       const response = await anthropic.messages.create({
         model: 'claude-sonnet-4-20250514',
@@ -149,8 +157,12 @@ export async function POST(request: NextRequest) {
           characters: totalTokens,
           model: 'claude-sonnet-4-20250514',
           maxTokens: maxTokens,
-          timeout: false, // 정상 완료된 경우 timeout: false
-          isContinuation: isContinuation
+          timeout: false,
+          isContinuation: isContinuation,
+          estimatedInputTokens: estimatedInputTokens,
+          optimizationApplied: true,
+          originalMessageCount: messages.length,
+          optimizedMessageCount: optimizedMessages.length
         }
       })
 
@@ -182,13 +194,17 @@ export async function POST(request: NextRequest) {
               characters: totalTokens,
               model: 'claude-sonnet-4-20250514',
               maxTokens: maxTokens,
-              timeout: true, // 타임아웃 플래그 명시적 설정
-              isContinuation: isContinuation
+              timeout: true,
+              isContinuation: isContinuation,
+              estimatedInputTokens: estimatedInputTokens,
+              optimizationApplied: true,
+              originalMessageCount: messages.length,
+              optimizedMessageCount: optimizedMessages.length
             }
           })
         }
         
-        errorMessage = '응답 시간이 초과되었습니다. 더 짧고 구체적인 질문으로 다시 시도해주세요.'
+        errorMessage = '응답 시간이 60초를 초과했습니다. 더 짧고 구체적인 질문으로 다시 시도해주세요.'
         console.warn('⏰ API 타임아웃 또는 중단 발생')
       }
       
