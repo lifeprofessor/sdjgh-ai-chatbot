@@ -211,50 +211,113 @@ export default function ChatInterface() {
         throw new Error(errorMessage)
       }
 
-      // 비스트리밍 응답 처리
-      const data = await response.json()
-      
-      console.log('📨 응답 받음:', {
-        contentLength: data.content?.length || 0,
-        isComplete: data.isComplete,
-        chunks: data.metadata?.chunks || 0,
-        timeout: data.metadata?.timeout
-      })
-
-      if (data.error) {
-        throw new Error(data.error)
+      // 스트리밍 응답 처리
+      if (!response.body) {
+        throw new Error('응답 본문이 없습니다.')
       }
 
-      // 메시지 업데이트
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let accumulatedContent = ''
+      let isComplete = false
+      let totalChunks = 0
+      let responseMetadata = null
+      let validationResult = null
+
+      console.log('📨 스트리밍 응답 시작')
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          
+          if (done) {
+            console.log('📨 스트리밍 완료')
+            break
+          }
+
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || '' // 마지막 불완전한 줄은 버퍼에 보관
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6))
+                
+                if (data.type === 'chunk') {
+                  // 실시간으로 콘텐츠 업데이트
+                  accumulatedContent += data.content
+                  totalChunks = data.chunkCount
+                  
+                  setMessages(prev => prev.map(msg => 
+                    msg.id === assistantMessageId 
+                      ? { 
+                          ...msg, 
+                          content: accumulatedContent,
+                          isStreaming: true
+                        } 
+                      : msg
+                  ))
+                  
+                  console.log(`📤 청크 ${data.chunkCount}: "${data.content}"`)
+                  
+                } else if (data.type === 'complete') {
+                  // 응답 완료
+                  isComplete = data.isComplete
+                  responseMetadata = data.metadata || {
+                    chunks: data.totalChunks,
+                    characters: data.totalTokens,
+                    model: 'claude-sonnet-4-20250514'
+                  }
+                  
+                  console.log('✅ 스트리밍 응답 완료:', {
+                    isComplete: data.isComplete,
+                    totalChunks: data.totalChunks,
+                    totalTokens: data.totalTokens,
+                    validation: data.validation
+                  })
+                  
+                  // 검증 결과 저장
+                  validationResult = data.validation
+                  if (data.validation) {
+                    console.warn('⚠️ 학교생활기록부 기재원칙 검토 필요:', data.validation)
+                  }
+                  
+                } else if (data.type === 'error') {
+                  throw new Error(data.error)
+                }
+              } catch (parseError) {
+                console.warn('JSON 파싱 오류:', parseError, 'Line:', line)
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock()
+      }
+
+      // 최종 메시지 업데이트
       setMessages(prev => prev.map(msg => 
         msg.id === assistantMessageId 
           ? { 
               ...msg, 
-              content: data.content || '',
+              content: accumulatedContent,
               isStreaming: false,
-              isComplete: data.isComplete,
-              canContinue: !data.isComplete, // 불완전한 응답이면 계속 요청 가능
-              validation: data.validation,
-              metadata: data.metadata
-            }
+              isComplete: isComplete,
+              canContinue: !isComplete,
+              metadata: responseMetadata,
+              validation: validationResult
+            } 
           : msg
       ))
 
-      // 자동 연속 요청 비활성화 - 사용자가 수동으로 "계속 작성하기" 버튼을 클릭해야 함
-      if (!data.isComplete && data.content && data.content.length > 0) {
-        if (data.metadata?.timeout) {
-          console.log('🔄 타임아웃으로 인한 불완전한 응답 감지, 수동 연속 요청 대기 중...', { 
-            mode, 
-            timeout: data.metadata.timeout,
-            contentLength: data.content.length 
-          })
-        } else {
-          console.log('🔄 불완전한 응답 감지 (타임아웃 아님), 수동 연속 요청 대기 중...', { 
-            isComplete: data.isComplete, 
-            timeout: data.metadata?.timeout,
-            contentLength: data.content.length 
-          })
-        }
+      // 불완전한 응답 처리
+      if (!isComplete && accumulatedContent && accumulatedContent.length > 0) {
+        console.log('🔄 불완전한 응답 감지, 수동 연속 요청 대기 중...', { 
+          mode, 
+          contentLength: accumulatedContent.length 
+        })
       }
 
     } catch (error) {

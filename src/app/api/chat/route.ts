@@ -62,8 +62,8 @@ export async function POST(request: NextRequest) {
       console.log('📋 최적화된 학교생활기록부 프롬프트 적용됨 (모드:', mode, ', 연속:', isContinuation, ')')
     }
 
-    // 연속 요청일 때는 토큰 수를 더 줄임
-    const maxTokens = isContinuation ? 800 : 1500
+    // 58초 타임아웃에 맞춰 토큰 수 증가 (연속 요청일 때는 상대적으로 적게)
+    const maxTokens = isContinuation ? 2000 : 4000
     
     // 토큰 사용량 추정
     const estimatedInputTokens = estimateTokens(processedMessages)
@@ -107,64 +107,103 @@ export async function POST(request: NextRequest) {
 
       console.log('✅ Claude API 응답 스트림 시작')
 
-      // 모든 청크를 수집
-      for await (const chunk of response) {
-        chunkCount++
-        
-        if (chunk.type === 'content_block_start') {
-          console.log('📝 콘텐츠 블록 시작')
-        } else if (chunk.type === 'content_block_delta') {
-          if ('text' in chunk.delta) {
-            totalTokens += chunk.delta.text.length
-            fullResponse += chunk.delta.text
-            console.log(`📤 청크 ${chunkCount}: "${chunk.delta.text}" (길이: ${chunk.delta.text.length})`)
+      // 스트리밍 응답을 위한 ReadableStream 생성
+      const stream = new ReadableStream({
+        async start(controller) {
+          try {
+            for await (const chunk of response) {
+              chunkCount++
+              
+              if (chunk.type === 'content_block_start') {
+                console.log('📝 콘텐츠 블록 시작')
+              } else if (chunk.type === 'content_block_delta') {
+                if ('text' in chunk.delta) {
+                  totalTokens += chunk.delta.text.length
+                  fullResponse += chunk.delta.text
+                  
+                  // 클라이언트에게 실시간으로 청크 전송
+                  const chunkData = {
+                    type: 'chunk',
+                    content: chunk.delta.text,
+                    chunkCount: chunkCount
+                  }
+                  controller.enqueue(`data: ${JSON.stringify(chunkData)}\n\n`)
+                  console.log(`📤 청크 ${chunkCount}: "${chunk.delta.text}" (길이: ${chunk.delta.text.length})`)
+                }
+              } else if (chunk.type === 'content_block_stop') {
+                console.log('📝 콘텐츠 블록 완료')
+              } else if (chunk.type === 'message_stop') {
+                console.log('🏁 메시지 완료')
+                isComplete = true
+              }
+            }
+            
+            clearTimeout(timeoutId)
+            console.log(`✅ 응답 수집 완료! 총 청크: ${chunkCount}, 총 문자 수: ${totalTokens}, 완료 여부: ${isComplete}`)
+            
+            // 학교생활기록부 요청인 경우 응답 검증
+            let validationResult = null
+            if (isSchoolRecordRequest && fullResponse) {
+              const validation = validateSchoolRecord(fullResponse)
+              if (!validation.isValid) {
+                console.warn('⚠️ 학교생활기록부 기재 원칙 위반 사항:', validation.violations)
+                validationResult = {
+                  warning: '기재 원칙 검토 필요',
+                  violations: validation.violations
+                }
+              } else {
+                console.log('✅ 학교생활기록부 기재 원칙 준수 확인됨')
+              }
+            }
+            
+            // 완료 신호 전송 (검증 결과 포함)
+            const completeData = {
+              type: 'complete',
+              isComplete: isComplete,
+              totalChunks: chunkCount,
+              totalTokens: totalTokens,
+              fullResponse: fullResponse,
+              validation: validationResult,
+              metadata: {
+                chunks: chunkCount,
+                characters: totalTokens,
+                model: 'claude-sonnet-4-20250514',
+                maxTokens: maxTokens,
+                timeout: false,
+                isContinuation: isContinuation,
+                estimatedInputTokens: estimatedInputTokens,
+                optimizationApplied: true,
+                originalMessageCount: messages.length,
+                optimizedMessageCount: optimizedMessages.length
+              }
+            }
+            controller.enqueue(`data: ${JSON.stringify(completeData)}\n\n`)
+            controller.close()
+            
+          } catch (error) {
+            console.error('스트리밍 중 오류:', error)
+            const errorData = {
+              type: 'error',
+              error: error instanceof Error ? error.message : '스트리밍 오류'
+            }
+            controller.enqueue(`data: ${JSON.stringify(errorData)}\n\n`)
+            controller.close()
           }
-        } else if (chunk.type === 'content_block_stop') {
-          console.log('📝 콘텐츠 블록 완료')
-        } else if (chunk.type === 'message_stop') {
-          console.log('🏁 메시지 완료')
-          isComplete = true
-        }
-      }
-
-      clearTimeout(timeoutId)
-      console.log(`✅ 응답 수집 완료! 총 청크: ${chunkCount}, 총 문자 수: ${totalTokens}, 완료 여부: ${isComplete}`)
-
-      // 학교생활기록부 요청인 경우 응답 검증
-      let validationResult = null
-      if (isSchoolRecordRequest && fullResponse) {
-        const validation = validateSchoolRecord(fullResponse)
-        if (!validation.isValid) {
-          console.warn('⚠️ 학교생활기록부 기재 원칙 위반 사항:', validation.violations)
-          validationResult = {
-            warning: '기재 원칙 검토 필요',
-            violations: validation.violations
-          }
-        } else {
-          console.log('✅ 학교생활기록부 기재 원칙 준수 확인됨')
-        }
-      }
-
-      
-
-      // 한 번에 응답 반환
-      return NextResponse.json({
-        content: fullResponse,
-        isComplete: isComplete,
-        validation: validationResult,
-        metadata: {
-          chunks: chunkCount,
-          characters: totalTokens,
-          model: 'claude-sonnet-4-20250514',
-          maxTokens: maxTokens,
-          timeout: false,
-          isContinuation: isContinuation,
-          estimatedInputTokens: estimatedInputTokens,
-          optimizationApplied: true,
-          originalMessageCount: messages.length,
-          optimizedMessageCount: optimizedMessages.length
         }
       })
+
+      // Server-Sent Events 응답 반환
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+        },
+      })
+
 
     } catch (error: any) {
       console.error('❌ Claude API Error:', {
@@ -179,35 +218,9 @@ export async function POST(request: NextRequest) {
       
       // 타임아웃 및 중단 에러 처리
       if (error.name === 'TimeoutError' || error.code === 'TIMEOUT' || error.name === 'AbortError') {
-        // 부분 응답이라도 있으면 반환
-        if (fullResponse.length > 0) {
-          console.warn('⏰ 타임아웃 발생했지만 부분 응답 반환', {
-            contentLength: fullResponse.length,
-            chunks: chunkCount
-          })
-          return NextResponse.json({
-            content: fullResponse + '\n\n[응답이 시간 제한으로 인해 중단되었습니다.]',
-            isComplete: false,
-            validation: null,
-            metadata: {
-              chunks: chunkCount,
-              characters: totalTokens,
-              model: 'claude-sonnet-4-20250514',
-              maxTokens: maxTokens,
-              timeout: true,
-              isContinuation: isContinuation,
-              estimatedInputTokens: estimatedInputTokens,
-              optimizationApplied: true,
-              originalMessageCount: messages.length,
-              optimizedMessageCount: optimizedMessages.length
-            }
-          })
-        }
-        
         errorMessage = '응답 시간이 60초를 초과했습니다. 더 짧고 구체적인 질문으로 다시 시도해주세요.'
         console.warn('⏰ API 타임아웃 또는 중단 발생')
       }
-      
       // API 키 관련 에러
       else if (error.status === 401) {
         errorMessage = `사용자 ${session.name}의 API 키가 유효하지 않거나 만료되었습니다. 관리자에게 문의하세요.`
@@ -230,10 +243,26 @@ export async function POST(request: NextRequest) {
         console.error('🔥 서버 에러')
       }
       
-      return NextResponse.json(
-        { error: errorMessage },
-        { status: error.status || 500 }
-      )
+      // 스트리밍 에러 응답 반환
+      const errorStream = new ReadableStream({
+        start(controller) {
+          const errorData = {
+            type: 'error',
+            error: errorMessage
+          }
+          controller.enqueue(`data: ${JSON.stringify(errorData)}\n\n`)
+          controller.close()
+        }
+      })
+      
+      return new Response(errorStream, {
+        status: error.status || 500,
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      })
     }
 
   } catch (error: any) {
@@ -244,28 +273,41 @@ export async function POST(request: NextRequest) {
       stack: error.stack
     })
     
+    let errorMessage = 'AI 응답을 생성하는 중 오류가 발생했습니다.'
+    let statusCode = 500
+    
     if (error.status === 401) {
       const session = getSession()
       const userInfo = session ? ` (사용자: ${session.name})` : ''
-      return NextResponse.json(
-        { error: `API 키가 유효하지 않습니다${userInfo}.` },
-        { status: 401 }
-      )
+      errorMessage = `API 키가 유효하지 않습니다${userInfo}.`
+      statusCode = 401
     } else if (error.status === 429) {
-      return NextResponse.json(
-        { error: 'API 사용량 한도를 초과했습니다. 잠시 후 다시 시도해주세요.' },
-        { status: 429 }
-      )
+      errorMessage = 'API 사용량 한도를 초과했습니다. 잠시 후 다시 시도해주세요.'
+      statusCode = 429
     } else if (error.status === 400) {
-      return NextResponse.json(
-        { error: '요청이 올바르지 않습니다. 다시 시도해주세요.' },
-        { status: 400 }
-      )
-    } else {
-      return NextResponse.json(
-        { error: 'AI 응답을 생성하는 중 오류가 발생했습니다.' },
-        { status: 500 }
-      )
+      errorMessage = '요청이 올바르지 않습니다. 다시 시도해주세요.'
+      statusCode = 400
     }
+    
+    // 스트리밍 에러 응답 반환
+    const errorStream = new ReadableStream({
+      start(controller) {
+        const errorData = {
+          type: 'error',
+          error: errorMessage
+        }
+        controller.enqueue(`data: ${JSON.stringify(errorData)}\n\n`)
+        controller.close()
+      }
+    })
+    
+    return new Response(errorStream, {
+      status: statusCode,
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    })
   }
 }
