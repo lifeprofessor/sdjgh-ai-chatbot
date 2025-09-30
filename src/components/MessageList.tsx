@@ -236,19 +236,45 @@ export default function MessageList({ messages, onContinueMessage }: MessageList
                         <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                       </svg>
                       <div className="flex-1">
-                        <h4 className="text-sm font-medium text-yellow-800 mb-2">
-                          ⚠️ {message.validation.warning}
+                        <h4 className="text-sm font-medium text-yellow-800 mb-3">
+                          ⚠️ {message.validation.isOriginalContent ? '원문' : 'AI 응답'}에서 기재원칙 위반 사항 발견 ({message.validation.violations.length}개 항목)
                         </h4>
-                        <ul className="text-sm text-yellow-700 space-y-1">
-                          {message.validation.violations.map((violation, index) => (
-                            <li key={index} className="flex items-start">
-                              <span className="w-1.5 h-1.5 bg-yellow-600 rounded-full mt-2 mr-2 flex-shrink-0"></span>
-                              {violation}
-                            </li>
-                          ))}
-                        </ul>
-                        <div className="mt-2 text-xs text-yellow-600">
-                          💡 위 사항들을 수정하여 다시 작성해달라고 요청해보세요.
+                        <div className="space-y-3">
+                          {message.validation.violations.map((violation: any, index: number) => {
+                            const severityColor = violation.severity === 'critical' ? 'text-red-700' : 
+                                               violation.severity === 'warning' ? 'text-yellow-700' : 'text-blue-700'
+                            const severityBg = violation.severity === 'critical' ? 'bg-red-50 border-red-200' : 
+                                              violation.severity === 'warning' ? 'bg-yellow-50 border-yellow-200' : 'bg-blue-50 border-blue-200'
+                            const severityEmoji = violation.severity === 'critical' ? '🚨' : 
+                                                 violation.severity === 'warning' ? '⚠️' : 'ℹ️'
+                            
+                            return (
+                              <div key={index} className={`${severityBg} border rounded-md p-3`}>
+                                <div className={`text-sm font-medium ${severityColor} mb-2`}>
+                                  {severityEmoji} {violation.type}
+                                </div>
+                                <div className="text-xs text-gray-600 mb-1">
+                                  <strong>발견된 내용:</strong> <span className="font-mono bg-gray-100 px-1 rounded">"{violation.found}"</span>
+                                </div>
+                                <div className="text-xs text-gray-600 mb-2">
+                                  <strong>원문 위치:</strong> {violation.context}
+                                </div>
+                                <div className={`text-xs ${severityColor} bg-white/70 rounded px-2 py-1 border-l-2 ${violation.severity === 'critical' ? 'border-red-400' : violation.severity === 'warning' ? 'border-yellow-400' : 'border-blue-400'}`}>
+                                  <strong>💡 수정 제안:</strong> {violation.suggestion}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                        <div className="mt-3 text-xs text-yellow-700 bg-yellow-100 rounded px-3 py-2 border border-yellow-300">
+                          <strong>📝 다음 단계:</strong> 위 사항들을 참고하여 
+                          <strong>
+                            {message.validation.isOriginalContent 
+                              ? " \"위 내용을 기재원칙에 맞게 수정해주세요\"" 
+                              : " \"수정된 내용을 다시 검토해주세요\""
+                            }
+                          </strong>
+                          라고 요청해보세요.
                         </div>
                       </div>
                     </div>

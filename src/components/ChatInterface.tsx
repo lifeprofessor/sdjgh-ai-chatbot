@@ -14,7 +14,14 @@ export interface Message {
   attachedFiles?: UploadedFile[]
   validation?: {
     warning?: string
-    violations?: string[]
+    violations?: Array<{
+      type: string
+      found: string
+      context: string
+      suggestion: string
+      severity: 'critical' | 'warning' | 'minor'
+    }>
+    isOriginalContent?: boolean
   }
   isComplete?: boolean
   canContinue?: boolean
@@ -280,8 +287,20 @@ export default function ChatInterface() {
                   
                   // 검증 결과 저장
                   validationResult = data.validation
-                  if (data.validation) {
-                    console.warn('⚠️ 학교생활기록부 기재원칙 검토 필요:', data.validation)
+                  if (data.validation && data.validation.violations && data.validation.violations.length > 0) {
+                    console.group('⚠️ 학교생활기록부 기재원칙 검토 결과')
+                    console.warn('총', data.validation.violations.length, '개의 위반 사항이 발견되었습니다:')
+                    
+                    data.validation.violations.forEach((violation: any, index: number) => {
+                      const emoji = violation.severity === 'critical' ? '🚨' : 
+                                   violation.severity === 'warning' ? '⚠️' : 'ℹ️'
+                      console.log(`${emoji} ${index + 1}. ${violation.type}`)
+                      console.log(`   발견된 내용: "${violation.found}"`)
+                      console.log(`   문맥: ${violation.context}`)
+                      console.log(`   수정 제안: ${violation.suggestion}`)
+                      console.log('---')
+                    })
+                    console.groupEnd()
                   }
                   
                 } else if (data.type === 'error') {

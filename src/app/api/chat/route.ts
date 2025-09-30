@@ -45,8 +45,33 @@ export async function POST(request: NextRequest) {
       lastMessage.role === 'user' && 
       (lastMessage.content.includes('계속 작성') || lastMessage.content.includes('이어서'))
 
-    // 명시적으로 전달된 모드 확인
-    const isSchoolRecordRequest = mode === 'school-record'
+    // 명시적으로 전달된 모드 확인 또는 내용 기반 자동 감지
+    const isSchoolRecordRequest = mode === 'school-record' || 
+      messages.some(msg => 
+        msg.role === 'user' && (
+          msg.content.includes('학교생활기록부') ||
+          msg.content.includes('생기부') ||
+          msg.content.includes('세특') ||
+          msg.content.includes('세부능력') ||
+          msg.content.includes('특기사항') ||
+          msg.content.includes('동아리') ||
+          msg.content.includes('봉사') ||
+          msg.content.includes('진로') ||
+          msg.content.includes('행동특성') ||
+          msg.content.includes('종합의견') ||
+          msg.content.includes('독서활동') ||
+          (msg.content.includes('반장') && msg.content.length > 100) ||
+          (msg.content.includes('학급') && msg.content.includes('운영')) ||
+          (msg.content.includes('리더십') && msg.content.length > 100)
+        )
+      )
+
+    console.log('🔍 학교생활기록부 검증 디버깅:', {
+      mode,
+      isSchoolRecordRequest,
+      lastUserMessage: messages[messages.length - 1]?.content?.substring(0, 100) + '...',
+      messageCount: messages.length
+    })
 
     // 컨텍스트 윈도우 최적화
     const optimizedMessages = optimizeMessageContext(messages, isSchoolRecordRequest, isContinuation)
@@ -141,19 +166,50 @@ export async function POST(request: NextRequest) {
             clearTimeout(timeoutId)
             console.log(`✅ 응답 수집 완료! 총 청크: ${chunkCount}, 총 문자 수: ${totalTokens}, 완료 여부: ${isComplete}`)
             
-            // 학교생활기록부 요청인 경우 응답 검증
+            // 학교생활기록부 요청인 경우 원문 검증
             let validationResult = null
-            if (isSchoolRecordRequest && fullResponse) {
-              const validation = validateSchoolRecord(fullResponse)
-              if (!validation.isValid) {
-                console.warn('⚠️ 학교생활기록부 기재 원칙 위반 사항:', validation.violations)
-                validationResult = {
-                  warning: '기재 원칙 검토 필요',
-                  violations: validation.violations
+            console.log('🔍 검증 조건 확인:', {
+              isSchoolRecordRequest,
+              hasFullResponse: !!fullResponse,
+              fullResponseLength: fullResponse?.length || 0,
+              fullResponsePreview: fullResponse?.substring(0, 100) + '...'
+            })
+            
+            if (isSchoolRecordRequest) {
+              console.log('🔍 학교생활기록부 원문 검증 실행 중...')
+              
+              // 사용자가 입력한 원문 찾기 (마지막 사용자 메시지)
+              const lastUserMessage = messages[messages.length - 1]
+              const originalContent = lastUserMessage?.role === 'user' ? lastUserMessage.content : ''
+              
+              console.log('🔍 원문 검증 대상:', {
+                hasOriginalContent: !!originalContent,
+                originalContentLength: originalContent.length,
+                originalContentPreview: originalContent.substring(0, 100) + '...'
+              })
+              
+              if (originalContent && originalContent.length > 50) {
+                const validation = validateSchoolRecord(originalContent)
+                console.log('🔍 원문 검증 결과:', {
+                  isValid: validation.isValid,
+                  violationCount: validation.violations?.length || 0
+                })
+                
+                if (!validation.isValid && validation.violations.length > 0) {
+                  console.warn('⚠️ 원문 기재 원칙 위반 사항:', validation.violations)
+                  validationResult = {
+                    warning: '원문에서 기재 원칙 위반 사항 발견',
+                    violations: validation.violations,
+                    isOriginalContent: true // 원문 검증임을 표시
+                  }
+                } else {
+                  console.log('✅ 원문 기재 원칙 준수 확인됨')
                 }
               } else {
-                console.log('✅ 학교생활기록부 기재 원칙 준수 확인됨')
+                console.log('🔍 원문이 너무 짧아 검증 건너뜀')
               }
+            } else {
+              console.log('🔍 검증 건너뜀 - 학교생활기록부 요청이 아님')
             }
             
             // 완료 신호 전송 (검증 결과 포함)

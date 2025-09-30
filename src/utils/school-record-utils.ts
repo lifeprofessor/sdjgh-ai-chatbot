@@ -12,72 +12,185 @@ export function loadSchoolRecordGuidelines(): string {
   }
 }
 
-// 기재 금지 항목 체크
-export function validateSchoolRecord(content: string): { isValid: boolean; violations: string[] } {
-  const violations: string[] = []
+// 기재 금지 항목 체크 (상세한 피드백 포함)
+export function validateSchoolRecord(content: string): { isValid: boolean; violations: Array<{ type: string; found: string; context: string; suggestion: string; severity: 'critical' | 'warning' | 'minor' }> } {
+  const violations: Array<{ type: string; found: string; context: string; suggestion: string; severity: 'critical' | 'warning' | 'minor' }> = []
   
-  // 공인어학성적 체크
-  const languageTests = ['토익', 'TOEIC', '토플', 'TOEFL', '텝스', 'TEPS', 'HSK', '아이엘츠', 'IELTS']
-  languageTests.forEach(test => {
-    if (content.includes(test)) {
-      violations.push(`공인어학성적 언급 금지: ${test}`)
-    }
-  })
+  // 문장별로 분석하여 컨텍스트 제공
+  const sentences = content.split(/[.!?。]/g).filter(s => s.trim().length > 0)
   
-  // 외부 수상실적 관련 키워드
-  const externalAwards = ['전국대회', '국제대회', '올림피아드', '공모전', '경진대회']
-  externalAwards.forEach(award => {
-    if (content.includes(award)) {
-      violations.push(`외부 수상실적 의심: ${award}`)
+  sentences.forEach((sentence, index) => {
+    const trimmedSentence = sentence.trim()
+    if (!trimmedSentence) return
+    
+    // 공인어학성적 체크
+    const languageTests = [
+      { keyword: '토익', full: 'TOEIC' },
+      { keyword: 'TOEIC', full: 'TOEIC' },
+      { keyword: '토플', full: 'TOEFL' },
+      { keyword: 'TOEFL', full: 'TOEFL' },
+      { keyword: '텝스', full: 'TEPS' },
+      { keyword: 'TEPS', full: 'TEPS' },
+      { keyword: 'HSK', full: 'HSK' },
+      { keyword: '아이엘츠', full: 'IELTS' },
+      { keyword: 'IELTS', full: 'IELTS' }
+    ]
+    
+    languageTests.forEach(test => {
+      if (trimmedSentence.includes(test.keyword)) {
+        violations.push({
+          type: '공인어학성적 언급 금지',
+          found: test.keyword,
+          context: `"${trimmedSentence}"`,
+          suggestion: '공인어학성적(토익, 토플, 텝스 등) 언급은 금지됩니다. 대신 "영어 의사소통 능력 향상을 위해 노력함" 등으로 표현하세요.',
+          severity: 'critical'
+        })
+      }
+    })
+    
+    // 외부 수상실적 관련 키워드
+    const externalAwards = ['전국대회', '국제대회', '올림피아드', '공모전', '경진대회', '교외대회']
+    externalAwards.forEach(award => {
+      if (trimmedSentence.includes(award)) {
+        violations.push({
+          type: '외부 수상실적 언급 의심',
+          found: award,
+          context: `"${trimmedSentence}"`,
+          suggestion: '교외 기관에서 주최하는 대회나 수상 실적은 기재할 수 없습니다. 교내 활동으로 대체하거나 관련 역량을 다른 방식으로 표현하세요.',
+          severity: 'critical'
+        })
+      }
+    })
+    
+    // 논문/학회 관련 키워드 (발표는 맥락 고려)
+    const academicKeywords = [
+      { keyword: '논문', suggestion: '논문 작성이나 게재는 기재할 수 없습니다.' },
+      { keyword: '학회', suggestion: '학회 발표나 참가는 기재할 수 없습니다.' },
+      { keyword: 'KCI', suggestion: '학술지 관련 내용은 기재할 수 없습니다.' },
+      { keyword: '게재', suggestion: '논문이나 글의 게재는 기재할 수 없습니다.' },
+      { keyword: '투고', suggestion: '논문 투고는 기재할 수 없습니다.' }
+    ]
+    
+    academicKeywords.forEach(item => {
+      if (trimmedSentence.includes(item.keyword)) {
+        violations.push({
+          type: '논문/학회 관련 내용 금지',
+          found: item.keyword,
+          context: `"${trimmedSentence}"`,
+          suggestion: item.suggestion + ' 대신 교내 발표나 탐구 활동으로 표현하세요.',
+          severity: 'critical'
+        })
+      }
+    })
+    
+    // '발표'는 논문/학회 발표가 아닌 일반 발표인지 확인
+    if (trimmedSentence.includes('발표')) {
+      const academicContext = ['논문', '학회', '연구', '학술', '저널', '게재'].some(word => 
+        trimmedSentence.includes(word) || content.includes(word)
+      )
+      if (academicContext) {
+        violations.push({
+          type: '논문/학회 관련 발표 금지',
+          found: '발표',
+          context: `"${trimmedSentence}"`,
+          suggestion: '논문이나 학회 발표는 기재할 수 없습니다. 교내 수업 발표나 동아리 발표 활동으로 수정하세요.',
+          severity: 'critical'
+        })
+      }
     }
-  })
-  
-  // 논문/학회 관련 키워드
-  const academicKeywords = ['논문', '학회', 'KCI', '발표', '게재', '투고']
-  academicKeywords.forEach(keyword => {
-    if (content.includes(keyword)) {
-      violations.push(`논문/학회 관련 내용 금지: ${keyword}`)
-    }
-  })
-  
-  // 부모/가족 정보 관련 키워드
-  const familyKeywords = ['아버지', '어머니', '부모님', '가족', '직장', '회사', '대표', '사장', '의사', '변호사', '교수']
-  familyKeywords.forEach(keyword => {
-    if (content.includes(keyword)) {
-      violations.push(`부모/가족 정보 언급 금지: ${keyword}`)
-    }
-  })
-  
-  // 특정 대학명 체크 (일부 예시)
-  const universities = ['서울대', '연세대', '고려대', '카이스트', 'KAIST', '포스텍', 'POSTECH']
-  universities.forEach(univ => {
-    if (content.includes(univ)) {
-      violations.push(`특정 대학명 언급 금지: ${univ}`)
-    }
-  })
-  
-  // 1인칭 시점 체크
-  const firstPersonWords = ['저는', '제가', '나는', '내가']
-  firstPersonWords.forEach(word => {
-    if (content.includes(word)) {
-      violations.push(`1인칭 시점 사용 금지: ${word}`)
-    }
-  })
-  
-  // 축약어 체크
-  const abbreviations = ['생기부', '세특', 'R&E']
-  abbreviations.forEach(abbr => {
-    if (content.includes(abbr)) {
-      violations.push(`축약어 사용 금지: ${abbr}`)
-    }
-  })
-  
-  // 명사형 어미 체크 (간단한 패턴 체크)
-  const wrongEndings = ['합니다', '했습니다', '입니다', '였습니다', '했다', '한다', '이다']
-  wrongEndings.forEach(ending => {
-    if (content.includes(ending)) {
-      violations.push(`명사형 어미 사용 필요: ${ending} → ~함, ~음, ~됨 형태로 수정`)
-    }
+    
+    // 부모/가족 정보 관련 키워드
+    const familyKeywords = [
+      { keyword: '서울대학교', suggestion: '특정 대학명 언급은 금지됩니다.' },
+      { keyword: '서울대', suggestion: '특정 대학명 언급은 금지됩니다.' },
+      { keyword: '형의 조언', suggestion: '가족 구성원의 배경이나 조언 언급은 금지됩니다.' },
+      { keyword: '아버지', suggestion: '부모/가족 정보 언급은 금지됩니다.' },
+      { keyword: '어머니', suggestion: '부모/가족 정보 언급은 금지됩니다.' },
+      { keyword: '부모님', suggestion: '부모/가족 정보 언급은 금지됩니다.' },
+      { keyword: '가족', suggestion: '가족 정보 언급은 금지됩니다.' }
+    ]
+    
+    familyKeywords.forEach(item => {
+      if (trimmedSentence.includes(item.keyword)) {
+        violations.push({
+          type: '부모/가족/대학 정보 언급 금지',
+          found: item.keyword,
+          context: `"${trimmedSentence}"`,
+          suggestion: item.suggestion + ' 학생 본인의 활동과 노력에 초점을 맞춰 작성하세요.',
+          severity: 'critical'
+        })
+      }
+    })
+    
+    // 1인칭 시점 체크
+    const firstPersonWords = ['저는', '제가', '나는', '내가', '본인이']
+    firstPersonWords.forEach(word => {
+      if (trimmedSentence.includes(word)) {
+        violations.push({
+          type: '1인칭 시점 사용 금지',
+          found: word,
+          context: `"${trimmedSentence}"`,
+          suggestion: '1인칭 시점은 사용할 수 없습니다. "학생은" 또는 주어를 생략하고 3인칭 관찰자 시점으로 작성하세요.',
+          severity: 'warning'
+        })
+      }
+    })
+    
+    // 축약어 체크
+    const abbreviations = [
+      { keyword: '생기부', full: '학교생활기록부' },
+      { keyword: '세특', full: '세부능력 및 특기사항' },
+      { keyword: 'R&E', full: '연구개발(R&E)' }
+    ]
+    
+    abbreviations.forEach(abbr => {
+      if (trimmedSentence.includes(abbr.keyword)) {
+        violations.push({
+          type: '축약어 사용 금지',
+          found: abbr.keyword,
+          context: `"${trimmedSentence}"`,
+          suggestion: `축약어 "${abbr.keyword}"는 사용할 수 없습니다. "${abbr.full}"로 정식 명칭을 사용하세요.`,
+          severity: 'minor'
+        })
+      }
+    })
+    
+    // 명사형 어미 체크
+    const wrongEndings = [
+      { keyword: '합니다', correct: '함' },
+      { keyword: '했습니다', correct: '함' },
+      { keyword: '입니다', correct: '임' },
+      { keyword: '였습니다', correct: '였음' },
+      { keyword: '했다', correct: '함' },
+      { keyword: '한다', correct: '함' },
+      { keyword: '이다', correct: '임' }
+    ]
+    
+    wrongEndings.forEach(ending => {
+      if (trimmedSentence.includes(ending.keyword)) {
+        violations.push({
+          type: '명사형 어미 사용 필요',
+          found: ending.keyword,
+          context: `"${trimmedSentence}"`,
+          suggestion: `"${ending.keyword}"를 "${ending.correct}" 등의 명사형 어미로 수정하세요. 학교생활기록부는 명사형 어미로 종결해야 합니다.`,
+          severity: 'warning'
+        })
+      }
+    })
+    
+    // 과도한 칭찬 표현 체크
+    const excessivePraise = ['뛰어난', '훌륭한', '탁월한', '최고의', '완벽한']
+    excessivePraise.forEach(praise => {
+      if (trimmedSentence.includes(praise)) {
+        violations.push({
+          type: '과도한 칭찬 표현 지양',
+          found: praise,
+          context: `"${trimmedSentence}"`,
+          suggestion: `"${praise}" 같은 과도한 칭찬보다는 구체적인 행동과 결과를 객관적으로 서술하세요.`,
+          severity: 'minor'
+        })
+      }
+    })
   })
   
   return {
