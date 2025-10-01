@@ -83,7 +83,7 @@ export default function UserStatus() {
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <span className="text-gray-600">사용자:</span>
-            <span className="font-medium text-gray-900">{userInfo.name}</span>
+            <span className="font-medium text-gray-900">{userInfo.name} 선생님</span>
           </div>
           
           <div className="flex items-center space-x-2">

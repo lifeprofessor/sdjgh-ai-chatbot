@@ -45,26 +45,8 @@ export async function POST(request: NextRequest) {
       lastMessage.role === 'user' && 
       (lastMessage.content.includes('계속 작성') || lastMessage.content.includes('이어서'))
 
-    // 명시적으로 전달된 모드 확인 또는 내용 기반 자동 감지
-    const isSchoolRecordRequest = mode === 'school-record' || 
-      messages.some(msg => 
-        msg.role === 'user' && (
-          msg.content.includes('학교생활기록부') ||
-          msg.content.includes('생기부') ||
-          msg.content.includes('세특') ||
-          msg.content.includes('세부능력') ||
-          msg.content.includes('특기사항') ||
-          msg.content.includes('동아리') ||
-          msg.content.includes('봉사') ||
-          msg.content.includes('진로') ||
-          msg.content.includes('행동특성') ||
-          msg.content.includes('종합의견') ||
-          msg.content.includes('독서활동') ||
-          (msg.content.includes('반장') && msg.content.length > 100) ||
-          (msg.content.includes('학급') && msg.content.includes('운영')) ||
-          (msg.content.includes('리더십') && msg.content.length > 100)
-        )
-      )
+    // 명시적으로 전달된 모드 확인 (일반 채팅 모드가 명시적으로 선택된 경우 내용에 관계없이 일반 대화로 처리)
+    const isSchoolRecordRequest = mode === 'school-record' && mode !== 'general'
 
     console.log('🔍 학교생활기록부 검증 디버깅:', {
       mode,
