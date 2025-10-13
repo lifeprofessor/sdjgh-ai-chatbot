@@ -1,0 +1,39 @@
+name: Keep Supabase Active
+
+on:
+  schedule:
+    # 3일마다 실행 (0시 0분)
+    - cron: '0 0 */3 * *'
+  workflow_dispatch: # 수동 실행도 가능
+
+jobs:
+  keep-active:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Keep Supabase Database Active
+      run: |
+        echo "🔄 Supabase 활성화 요청 전송 중..."
+        echo "URL: ${{ secrets.DEPLOYED_URL }}/api/keep-alive"
+        echo "시간: $(date)"
+        
+        # 배포된 사이트의 API 엔드포인트 호출
+        RESPONSE=$(curl -X POST "${{ secrets.DEPLOYED_URL }}/api/keep-alive" \
+          -H "Content-Type: application/json" \
+          -H "X-Keep-Alive-Secret: ${{ secrets.KEEP_ALIVE_SECRET }}" \
+          --write-out "HTTPSTATUS:%{http_code}" \
+          --silent --show-error)
+        
+        # HTTP 상태 코드 추출
+        HTTP_CODE=$(echo $RESPONSE | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+        BODY=$(echo $RESPONSE | sed -e 's/HTTPSTATUS\:.*//g')
+        
+        echo "HTTP 상태 코드: $HTTP_CODE"
+        echo "응답 내용: $BODY"
+        
+        if [ $HTTP_CODE -eq 200 ]; then
+          echo "✅ Supabase 활성화 성공!"
+        else
+          echo "❌ Supabase 활성화 실패 (코드: $HTTP_CODE)"
+          exit 1
+        fi
