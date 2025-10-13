@@ -1,0 +1,191 @@
+{
+  "prohibitedItems": {
+    "languageTests": [
+      {
+        "keywords": ["토익", "TOEIC", "토플", "TOEFL", "텝스", "TEPS", "HSK", "아이엘츠", "IELTS"],
+        "type": "공인어학성적 언급 금지",
+        "severity": "critical",
+        "suggestion": "공인어학성적(토익, 토플, 텝스 등) 언급은 금지됩니다. 대신 '영어 의사소통 능력 향상을 위해 노력함' 등으로 표현하세요."
+      }
+    ],
+    "externalAwards": [
+      {
+        "keywords": ["전국대회", "국제대회", "올림피아드", "공모전", "경진대회", "교외대회"],
+        "type": "외부 수상실적 언급 의심",
+        "severity": "critical",
+        "suggestion": "교외 기관에서 주최하는 대회나 수상 실적은 기재할 수 없습니다. 교내 활동으로 대체하거나 관련 역량을 다른 방식으로 표현하세요."
+      }
+    ],
+    "academicKeywords": [
+      {
+        "keyword": "논문",
+        "type": "논문/학회 관련 내용 금지",
+        "severity": "critical",
+        "suggestion": "논문 작성이나 게재는 기재할 수 없습니다. 대신 교내 발표나 탐구 활동으로 표현하세요."
+      },
+      {
+        "keyword": "학회",
+        "type": "논문/학회 관련 내용 금지",
+        "severity": "critical",
+        "suggestion": "학회 발표나 참가는 기재할 수 없습니다. 대신 교내 발표나 탐구 활동으로 표현하세요."
+      },
+      {
+        "keyword": "KCI",
+        "type": "논문/학회 관련 내용 금지",
+        "severity": "critical",
+        "suggestion": "학술지 관련 내용은 기재할 수 없습니다. 대신 교내 발표나 탐구 활동으로 표현하세요."
+      },
+      {
+        "keyword": "게재",
+        "type": "논문/학회 관련 내용 금지",
+        "severity": "critical",
+        "suggestion": "논문이나 글의 게재는 기재할 수 없습니다. 대신 교내 발표나 탐구 활동으로 표현하세요."
+      },
+      {
+        "keyword": "투고",
+        "type": "논문/학회 관련 내용 금지",
+        "severity": "critical",
+        "suggestion": "논문 투고는 기재할 수 없습니다. 대신 교내 발표나 탐구 활동으로 표현하세요."
+      }
+    ],
+    "familyKeywords": [
+      {
+        "keyword": "서울대학교",
+        "type": "부모/가족/대학 정보 언급 금지",
+        "severity": "critical",
+        "suggestion": "특정 대학명 언급은 금지됩니다. 학생 본인의 활동과 노력에 초점을 맞춰 작성하세요."
+      },
+      {
+        "keyword": "서울대",
+        "type": "부모/가족/대학 정보 언급 금지",
+        "severity": "critical",
+        "suggestion": "특정 대학명 언급은 금지됩니다. 학생 본인의 활동과 노력에 초점을 맞춰 작성하세요."
+      },
+      {
+        "keyword": "형의 조언",
+        "type": "부모/가족/대학 정보 언급 금지",
+        "severity": "critical",
+        "suggestion": "가족 구성원의 배경이나 조언 언급은 금지됩니다. 학생 본인의 활동과 노력에 초점을 맞춰 작성하세요."
+      },
+      {
+        "keyword": "아버지",
+        "type": "부모/가족/대학 정보 언급 금지",
+        "severity": "critical",
+        "suggestion": "부모/가족 정보 언급은 금지됩니다. 학생 본인의 활동과 노력에 초점을 맞춰 작성하세요."
+      },
+      {
+        "keyword": "어머니",
+        "type": "부모/가족/대학 정보 언급 금지",
+        "severity": "critical",
+        "suggestion": "부모/가족 정보 언급은 금지됩니다. 학생 본인의 활동과 노력에 초점을 맞춰 작성하세요."
+      },
+      {
+        "keyword": "부모님",
+        "type": "부모/가족/대학 정보 언급 금지",
+        "severity": "critical",
+        "suggestion": "부모/가족 정보 언급은 금지됩니다. 학생 본인의 활동과 노력에 초점을 맞춰 작성하세요."
+      },
+      {
+        "keyword": "가족",
+        "type": "부모/가족/대학 정보 언급 금지",
+        "severity": "critical",
+        "suggestion": "가족 정보 언급은 금지됩니다. 학생 본인의 활동과 노력에 초점을 맞춰 작성하세요."
+      }
+    ]
+  },
+  "styleRules": {
+    "firstPersonWords": [
+      {
+        "keywords": ["저는", "제가", "나는", "내가", "본인이"],
+        "type": "1인칭 시점 사용 금지",
+        "severity": "warning",
+        "suggestion": "1인칭 시점은 사용할 수 없습니다. '학생은' 또는 주어를 생략하고 3인칭 관찰자 시점으로 작성하세요."
+      }
+    ],
+    "abbreviations": [
+      {
+        "keyword": "생기부",
+        "full": "학교생활기록부",
+        "type": "축약어 사용 금지",
+        "severity": "minor",
+        "suggestion": "축약어 '생기부'는 사용할 수 없습니다. '학교생활기록부'로 정식 명칭을 사용하세요."
+      },
+      {
+        "keyword": "세특",
+        "full": "세부능력 및 특기사항",
+        "type": "축약어 사용 금지",
+        "severity": "minor",
+        "suggestion": "축약어 '세특'은 사용할 수 없습니다. '세부능력 및 특기사항'으로 정식 명칭을 사용하세요."
+      },
+      {
+        "keyword": "R&E",
+        "full": "연구개발(R&E)",
+        "type": "축약어 사용 금지",
+        "severity": "minor",
+        "suggestion": "축약어 'R&E'는 사용할 수 없습니다. '연구개발(R&E)'로 정식 명칭을 사용하세요."
+      }
+    ],
+    "wrongEndings": [
+      {
+        "keyword": "합니다",
+        "correct": "함",
+        "type": "명사형 어미 사용 필요",
+        "severity": "warning",
+        "suggestion": "'합니다'를 '함' 등의 명사형 어미로 수정하세요. 학교생활기록부는 명사형 어미로 종결해야 합니다."
+      },
+      {
+        "keyword": "했습니다",
+        "correct": "함",
+        "type": "명사형 어미 사용 필요",
+        "severity": "warning",
+        "suggestion": "'했습니다'를 '함' 등의 명사형 어미로 수정하세요. 학교생활기록부는 명사형 어미로 종결해야 합니다."
+      },
+      {
+        "keyword": "입니다",
+        "correct": "임",
+        "type": "명사형 어미 사용 필요",
+        "severity": "warning",
+        "suggestion": "'입니다'를 '임' 등의 명사형 어미로 수정하세요. 학교생활기록부는 명사형 어미로 종결해야 합니다."
+      },
+      {
+        "keyword": "였습니다",
+        "correct": "였음",
+        "type": "명사형 어미 사용 필요",
+        "severity": "warning",
+        "suggestion": "'였습니다'를 '였음' 등의 명사형 어미로 수정하세요. 학교생활기록부는 명사형 어미로 종결해야 합니다."
+      },
+      {
+        "keyword": "했다",
+        "correct": "함",
+        "type": "명사형 어미 사용 필요",
+        "severity": "warning",
+        "suggestion": "'했다'를 '함' 등의 명사형 어미로 수정하세요. 학교생활기록부는 명사형 어미로 종결해야 합니다."
+      },
+      {
+        "keyword": "한다",
+        "correct": "함",
+        "type": "명사형 어미 사용 필요",
+        "severity": "warning",
+        "suggestion": "'한다'를 '함' 등의 명사형 어미로 수정하세요. 학교생활기록부는 명사형 어미로 종결해야 합니다."
+      },
+      {
+        "keyword": "이다",
+        "correct": "임",
+        "type": "명사형 어미 사용 필요",
+        "severity": "warning",
+        "suggestion": "'이다'를 '임' 등의 명사형 어미로 수정하세요. 학교생활기록부는 명사형 어미로 종결해야 합니다."
+      }
+    ],
+    "excessivePraise": [
+      {
+        "keywords": ["뛰어난", "훌륭한", "탁월한", "최고의", "완벽한"],
+        "type": "과도한 칭찬 표현 지양",
+        "severity": "minor",
+        "suggestion": "과도한 칭찬보다는 구체적인 행동과 결과를 객관적으로 서술하세요."
+      }
+    ]
+  },
+  "academicContextKeywords": [
+    "논문", "학회", "연구", "학술", "저널", "게재"
+  ]
+}

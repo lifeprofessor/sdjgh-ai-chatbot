@@ -67,6 +67,16 @@ export async function POST(request: NextRequest) {
         ...optimizedMessages
       ]
       console.log('📋 최적화된 학교생활기록부 프롬프트 적용됨 (모드:', mode, ', 연속:', isContinuation, ')')
+      
+      // 프롬프트 내용을 터미널에 로그로 출력
+      console.log('\n' + '='.repeat(80))
+      console.log('🎯 학교생활기록부 시스템 프롬프트:')
+      console.log('='.repeat(80))
+      console.log(systemPrompt)
+      console.log('='.repeat(80))
+      console.log('📝 사용자 메시지:')
+      console.log(optimizedMessages[optimizedMessages.length - 1]?.content || '메시지 없음')
+      console.log('='.repeat(80) + '\n')
     }
 
     // 58초 타임아웃에 맞춰 토큰 수 증가 (연속 요청일 때는 상대적으로 적게)

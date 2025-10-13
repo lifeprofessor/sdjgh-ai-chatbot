@@ -1,6 +1,33 @@
 import fs from 'fs'
 import path from 'path'
 
+// 검증 규칙 타입 정의
+interface ValidationRule {
+  keyword?: string
+  keywords?: string[]
+  full?: string
+  correct?: string
+  type: string
+  severity: 'critical' | 'warning' | 'minor'
+  suggestion: string
+}
+
+interface ValidationRules {
+  prohibitedItems: {
+    languageTests: ValidationRule[]
+    externalAwards: ValidationRule[]
+    academicKeywords: ValidationRule[]
+    familyKeywords: ValidationRule[]
+  }
+  styleRules: {
+    firstPersonWords: ValidationRule[]
+    abbreviations: ValidationRule[]
+    wrongEndings: ValidationRule[]
+    excessivePraise: ValidationRule[]
+  }
+  academicContextKeywords: string[]
+}
+
 // 학교생활기록부 기재 원칙 프롬프트 로드
 export function loadSchoolRecordGuidelines(): string {
   try {
@@ -12,9 +39,39 @@ export function loadSchoolRecordGuidelines(): string {
   }
 }
 
-// 기재 금지 항목 체크 (상세한 피드백 포함)
+// 검증 규칙 동적 로드
+export function loadValidationRules(): ValidationRules {
+  try {
+    const rulesPath = path.join(process.cwd(), 'src', 'prompts', 'validation-rules.json')
+    const rulesContent = fs.readFileSync(rulesPath, 'utf-8')
+    return JSON.parse(rulesContent)
+  } catch (error) {
+    console.error('검증 규칙 파일을 읽을 수 없습니다:', error)
+    // 기본 규칙 반환
+    return {
+      prohibitedItems: {
+        languageTests: [],
+        externalAwards: [],
+        academicKeywords: [],
+        familyKeywords: []
+      },
+      styleRules: {
+        firstPersonWords: [],
+        abbreviations: [],
+        wrongEndings: [],
+        excessivePraise: []
+      },
+      academicContextKeywords: []
+    }
+  }
+}
+
+// 기재 금지 항목 체크 (동적 규칙 로딩)
 export function validateSchoolRecord(content: string): { isValid: boolean; violations: Array<{ type: string; found: string; context: string; suggestion: string; severity: 'critical' | 'warning' | 'minor' }> } {
   const violations: Array<{ type: string; found: string; context: string; suggestion: string; severity: 'critical' | 'warning' | 'minor' }> = []
+  
+  // 검증 규칙 동적 로드
+  const rules = loadValidationRules()
   
   // 문장별로 분석하여 컨텍스트 제공
   const sentences = content.split(/[.!?。]/g).filter(s => s.trim().length > 0)
@@ -24,69 +81,52 @@ export function validateSchoolRecord(content: string): { isValid: boolean; viola
     if (!trimmedSentence) return
     
     // 공인어학성적 체크
-    const languageTests = [
-      { keyword: '토익', full: 'TOEIC' },
-      { keyword: 'TOEIC', full: 'TOEIC' },
-      { keyword: '토플', full: 'TOEFL' },
-      { keyword: 'TOEFL', full: 'TOEFL' },
-      { keyword: '텝스', full: 'TEPS' },
-      { keyword: 'TEPS', full: 'TEPS' },
-      { keyword: 'HSK', full: 'HSK' },
-      { keyword: '아이엘츠', full: 'IELTS' },
-      { keyword: 'IELTS', full: 'IELTS' }
-    ]
-    
-    languageTests.forEach(test => {
-      if (trimmedSentence.includes(test.keyword)) {
-        violations.push({
-          type: '공인어학성적 언급 금지',
-          found: test.keyword,
-          context: `"${trimmedSentence}"`,
-          suggestion: '공인어학성적(토익, 토플, 텝스 등) 언급은 금지됩니다. 대신 "영어 의사소통 능력 향상을 위해 노력함" 등으로 표현하세요.',
-          severity: 'critical'
-        })
-      }
+    rules.prohibitedItems.languageTests.forEach(rule => {
+      rule.keywords?.forEach(keyword => {
+        if (trimmedSentence.includes(keyword)) {
+          violations.push({
+            type: rule.type,
+            found: keyword,
+            context: `"${trimmedSentence}"`,
+            suggestion: rule.suggestion,
+            severity: rule.severity
+          })
+        }
+      })
     })
     
-    // 외부 수상실적 관련 키워드
-    const externalAwards = ['전국대회', '국제대회', '올림피아드', '공모전', '경진대회', '교외대회']
-    externalAwards.forEach(award => {
-      if (trimmedSentence.includes(award)) {
-        violations.push({
-          type: '외부 수상실적 언급 의심',
-          found: award,
-          context: `"${trimmedSentence}"`,
-          suggestion: '교외 기관에서 주최하는 대회나 수상 실적은 기재할 수 없습니다. 교내 활동으로 대체하거나 관련 역량을 다른 방식으로 표현하세요.',
-          severity: 'critical'
-        })
-      }
+    // 외부 수상실적 체크
+    rules.prohibitedItems.externalAwards.forEach(rule => {
+      rule.keywords?.forEach(keyword => {
+        if (trimmedSentence.includes(keyword)) {
+          violations.push({
+            type: rule.type,
+            found: keyword,
+            context: `"${trimmedSentence}"`,
+            suggestion: rule.suggestion,
+            severity: rule.severity
+          })
+        }
+      })
     })
     
-    // 논문/학회 관련 키워드 (발표는 맥락 고려)
-    const academicKeywords = [
-      { keyword: '논문', suggestion: '논문 작성이나 게재는 기재할 수 없습니다.' },
-      { keyword: '학회', suggestion: '학회 발표나 참가는 기재할 수 없습니다.' },
-      { keyword: 'KCI', suggestion: '학술지 관련 내용은 기재할 수 없습니다.' },
-      { keyword: '게재', suggestion: '논문이나 글의 게재는 기재할 수 없습니다.' },
-      { keyword: '투고', suggestion: '논문 투고는 기재할 수 없습니다.' }
-    ]
-    
-    academicKeywords.forEach(item => {
-      if (trimmedSentence.includes(item.keyword)) {
+    // 논문/학회 관련 키워드 체크
+    rules.prohibitedItems.academicKeywords.forEach(rule => {
+      if (rule.keyword && trimmedSentence.includes(rule.keyword)) {
         violations.push({
-          type: '논문/학회 관련 내용 금지',
-          found: item.keyword,
+          type: rule.type,
+          found: rule.keyword,
           context: `"${trimmedSentence}"`,
-          suggestion: item.suggestion + ' 대신 교내 발표나 탐구 활동으로 표현하세요.',
-          severity: 'critical'
+          suggestion: rule.suggestion,
+          severity: rule.severity
         })
       }
     })
     
     // '발표'는 논문/학회 발표가 아닌 일반 발표인지 확인
     if (trimmedSentence.includes('발표')) {
-      const academicContext = ['논문', '학회', '연구', '학술', '저널', '게재'].some(word => 
-        trimmedSentence.includes(word) || content.includes(word)
+      const academicContext = rules.academicContextKeywords.some(keyword => 
+        trimmedSentence.includes(keyword) || content.includes(keyword)
       )
       if (academicContext) {
         violations.push({
@@ -99,97 +139,73 @@ export function validateSchoolRecord(content: string): { isValid: boolean; viola
       }
     }
     
-    // 부모/가족 정보 관련 키워드
-    const familyKeywords = [
-      { keyword: '서울대학교', suggestion: '특정 대학명 언급은 금지됩니다.' },
-      { keyword: '서울대', suggestion: '특정 대학명 언급은 금지됩니다.' },
-      { keyword: '형의 조언', suggestion: '가족 구성원의 배경이나 조언 언급은 금지됩니다.' },
-      { keyword: '아버지', suggestion: '부모/가족 정보 언급은 금지됩니다.' },
-      { keyword: '어머니', suggestion: '부모/가족 정보 언급은 금지됩니다.' },
-      { keyword: '부모님', suggestion: '부모/가족 정보 언급은 금지됩니다.' },
-      { keyword: '가족', suggestion: '가족 정보 언급은 금지됩니다.' }
-    ]
-    
-    familyKeywords.forEach(item => {
-      if (trimmedSentence.includes(item.keyword)) {
+    // 부모/가족 정보 관련 키워드 체크
+    rules.prohibitedItems.familyKeywords.forEach(rule => {
+      if (rule.keyword && trimmedSentence.includes(rule.keyword)) {
         violations.push({
-          type: '부모/가족/대학 정보 언급 금지',
-          found: item.keyword,
+          type: rule.type,
+          found: rule.keyword,
           context: `"${trimmedSentence}"`,
-          suggestion: item.suggestion + ' 학생 본인의 활동과 노력에 초점을 맞춰 작성하세요.',
-          severity: 'critical'
+          suggestion: rule.suggestion,
+          severity: rule.severity
         })
       }
     })
     
     // 1인칭 시점 체크
-    const firstPersonWords = ['저는', '제가', '나는', '내가', '본인이']
-    firstPersonWords.forEach(word => {
-      if (trimmedSentence.includes(word)) {
-        violations.push({
-          type: '1인칭 시점 사용 금지',
-          found: word,
-          context: `"${trimmedSentence}"`,
-          suggestion: '1인칭 시점은 사용할 수 없습니다. "학생은" 또는 주어를 생략하고 3인칭 관찰자 시점으로 작성하세요.',
-          severity: 'warning'
-        })
-      }
+    rules.styleRules.firstPersonWords.forEach(rule => {
+      rule.keywords?.forEach(keyword => {
+        if (trimmedSentence.includes(keyword)) {
+          violations.push({
+            type: rule.type,
+            found: keyword,
+            context: `"${trimmedSentence}"`,
+            suggestion: rule.suggestion,
+            severity: rule.severity
+          })
+        }
+      })
     })
     
     // 축약어 체크
-    const abbreviations = [
-      { keyword: '생기부', full: '학교생활기록부' },
-      { keyword: '세특', full: '세부능력 및 특기사항' },
-      { keyword: 'R&E', full: '연구개발(R&E)' }
-    ]
-    
-    abbreviations.forEach(abbr => {
-      if (trimmedSentence.includes(abbr.keyword)) {
+    rules.styleRules.abbreviations.forEach(rule => {
+      if (rule.keyword && trimmedSentence.includes(rule.keyword)) {
         violations.push({
-          type: '축약어 사용 금지',
-          found: abbr.keyword,
+          type: rule.type,
+          found: rule.keyword,
           context: `"${trimmedSentence}"`,
-          suggestion: `축약어 "${abbr.keyword}"는 사용할 수 없습니다. "${abbr.full}"로 정식 명칭을 사용하세요.`,
-          severity: 'minor'
+          suggestion: rule.suggestion,
+          severity: rule.severity
         })
       }
     })
     
     // 명사형 어미 체크
-    const wrongEndings = [
-      { keyword: '합니다', correct: '함' },
-      { keyword: '했습니다', correct: '함' },
-      { keyword: '입니다', correct: '임' },
-      { keyword: '였습니다', correct: '였음' },
-      { keyword: '했다', correct: '함' },
-      { keyword: '한다', correct: '함' },
-      { keyword: '이다', correct: '임' }
-    ]
-    
-    wrongEndings.forEach(ending => {
-      if (trimmedSentence.includes(ending.keyword)) {
+    rules.styleRules.wrongEndings.forEach(rule => {
+      if (rule.keyword && trimmedSentence.includes(rule.keyword)) {
         violations.push({
-          type: '명사형 어미 사용 필요',
-          found: ending.keyword,
+          type: rule.type,
+          found: rule.keyword,
           context: `"${trimmedSentence}"`,
-          suggestion: `"${ending.keyword}"를 "${ending.correct}" 등의 명사형 어미로 수정하세요. 학교생활기록부는 명사형 어미로 종결해야 합니다.`,
-          severity: 'warning'
+          suggestion: rule.suggestion,
+          severity: rule.severity
         })
       }
     })
     
     // 과도한 칭찬 표현 체크
-    const excessivePraise = ['뛰어난', '훌륭한', '탁월한', '최고의', '완벽한']
-    excessivePraise.forEach(praise => {
-      if (trimmedSentence.includes(praise)) {
-        violations.push({
-          type: '과도한 칭찬 표현 지양',
-          found: praise,
-          context: `"${trimmedSentence}"`,
-          suggestion: `"${praise}" 같은 과도한 칭찬보다는 구체적인 행동과 결과를 객관적으로 서술하세요.`,
-          severity: 'minor'
-        })
-      }
+    rules.styleRules.excessivePraise.forEach(rule => {
+      rule.keywords?.forEach(keyword => {
+        if (trimmedSentence.includes(keyword)) {
+          violations.push({
+            type: rule.type,
+            found: keyword,
+            context: `"${trimmedSentence}"`,
+            suggestion: rule.suggestion,
+            severity: rule.severity
+          })
+        }
+      })
     })
   })
   
