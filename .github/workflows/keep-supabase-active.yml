@@ -32,7 +32,7 @@ jobs:
           -H "Content-Type: application/json" \
           -H "X-Keep-Alive-Secret: $KEEP_ALIVE_SECRET" \
           --write-out "HTTPSTATUS:%{http_code}" \
-          --silent --show-error)
+          --silent --show-error --location --max-redirs 3)
         
         # HTTP 상태 코드 추출
         HTTP_CODE=$(echo $RESPONSE | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
