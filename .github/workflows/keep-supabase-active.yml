@@ -3,7 +3,7 @@ name: Keep Supabase Active
 on:
   schedule:
     # 3일마다 실행 (0시 0분)
-    - cron: '0 0 */3 * *'
+    - cron: '0 0 */7 * *'
   workflow_dispatch: # 수동 실행도 가능
 
 jobs:

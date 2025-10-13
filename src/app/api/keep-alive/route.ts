@@ -10,9 +10,21 @@ export async function POST(request: NextRequest) {
     const keepAliveSecret = request.headers.get('X-Keep-Alive-Secret')
     const expectedSecret = process.env.KEEP_ALIVE_SECRET
     
+    console.log('🔍 디버깅 정보:')
+    console.log('- 받은 시크릿:', keepAliveSecret?.substring(0, 10) + '...')
+    console.log('- 예상 시크릿:', expectedSecret?.substring(0, 10) + '...')
+    console.log('- 환경 변수 존재:', !!expectedSecret)
+    
     if (!expectedSecret || keepAliveSecret !== expectedSecret) {
       return NextResponse.json(
-        { error: '인증되지 않은 요청입니다.' },
+        { 
+          error: '인증되지 않은 요청입니다.',
+          debug: {
+            hasSecret: !!expectedSecret,
+            receivedLength: keepAliveSecret?.length || 0,
+            expectedLength: expectedSecret?.length || 0
+          }
+        },
         { status: 401 }
       )
     }
