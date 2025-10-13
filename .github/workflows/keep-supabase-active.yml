@@ -3,7 +3,7 @@ name: Keep Supabase Active
 on:
   schedule:
     # 3일마다 실행 (0시 0분)
-    - cron: '0 0 */7 * *'
+    - cron: '0 0 */1 * *'
   workflow_dispatch: # 수동 실행도 가능
 
 jobs:
@@ -13,14 +13,24 @@ jobs:
     steps:
     - name: Keep Supabase Database Active
       run: |
+        # 환경 변수 확인
+        DEPLOYED_URL="${{ secrets.DEPLOYED_URL }}"
+        KEEP_ALIVE_SECRET="${{ secrets.KEEP_ALIVE_SECRET }}"
+        
+        if [ -z "$DEPLOYED_URL" ] || [ -z "$KEEP_ALIVE_SECRET" ]; then
+          echo "❌ GitHub Secrets이 설정되지 않았습니다."
+          echo "DEPLOYED_URL과 KEEP_ALIVE_SECRET을 GitHub Secrets에 추가해주세요."
+          exit 1
+        fi
+        
         echo "🔄 Supabase 활성화 요청 전송 중..."
-        echo "URL: ${{ secrets.DEPLOYED_URL }}/api/keep-alive"
+        echo "URL: $DEPLOYED_URL/api/keep-alive"
         echo "시간: $(date)"
         
         # 배포된 사이트의 API 엔드포인트 호출
-        RESPONSE=$(curl -X POST "${{ secrets.DEPLOYED_URL }}/api/keep-alive" \
+        RESPONSE=$(curl -X POST "$DEPLOYED_URL/api/keep-alive" \
           -H "Content-Type: application/json" \
-          -H "X-Keep-Alive-Secret: ${{ secrets.KEEP_ALIVE_SECRET }}" \
+          -H "X-Keep-Alive-Secret: $KEEP_ALIVE_SECRET" \
           --write-out "HTTPSTATUS:%{http_code}" \
           --silent --show-error)
         
