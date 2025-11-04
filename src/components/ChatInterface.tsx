@@ -56,6 +56,7 @@ export default function ChatInterface() {
   const [isAutoScrolling, setIsAutoScrolling] = useState(true)
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [showUploadInfo, setShowUploadInfo] = useState(false)
+  const [showRulesModal, setShowRulesModal] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
 
@@ -457,15 +458,24 @@ export default function ChatInterface() {
             />
             <h1 className="text-lg font-bold text-gray-800">서대전여자고등학교 교직원 전용 AI</h1>
           </div>
-          <button
-            onClick={resetChat}
-            className="text-gray-500 hover:text-gray-700 p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            title="새 채팅"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setShowRulesModal(true)}
+              className="text-sm text-green-600 hover:text-green-700 px-3 py-1.5 rounded-lg hover:bg-green-50 transition-colors border border-blue-200 hover:border-blue-300"
+              title="학교생활기록부 기재 원칙"
+            >
+              학교생활기록부 기재 원칙
+            </button>
+            <button
+              onClick={resetChat}
+              className="text-gray-500 hover:text-gray-700 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              title="새 채팅"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -641,6 +651,265 @@ export default function ChatInterface() {
           />
         </div>
       </div>
+
+      {/* 학교생활기록부 기재 원칙 모달 */}
+      {showRulesModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowRulesModal(false)}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 모달 헤더 */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-2xl font-bold text-gray-800">학교생활기록부 기재 원칙 및 점검 기준</h2>
+              <button
+                onClick={() => setShowRulesModal(false)}
+                className="text-gray-500 hover:text-gray-700 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                title="닫기"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* 모달 내용 */}
+            <div className="overflow-y-auto p-6 space-y-6">
+              {/* I. 공통 기재 원칙 */}
+              <section>
+                <h3 className="text-xl font-bold text-gray-800 mb-4">I. 공통 기재 원칙 (전체 항목 적용)</h3>
+                <ul className="space-y-2 text-gray-700">
+                  <li className="flex items-start">
+                    <span className="font-semibold text-gray-900 mr-2">• 객관성:</span>
+                    <span>모든 내용은 교사가 직접 관찰하고 평가한 사실에 근거하여 객관적으로 작성한다.</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="font-semibold text-gray-900 mr-2">• 과정 중심:</span>
+                    <span>활동의 결과 나열보다 동기, 과정, 성장, 변화를 중심으로 서술한다.</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="font-semibold text-gray-900 mr-2">• 구체성:</span>
+                    <span>추상적인 표현('성실함', '뛰어남')을 지양하고, 구체적인 사례와 근거를 통해 학생의 특성이 드러나도록 작성한다.</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="font-semibold text-gray-900 mr-2">• 개별화:</span>
+                    <span>다른 학생과 복사-붙여넣기한 듯한 내용이 아닌, 학생 고유의 특성과 역량이 나타나도록 서술한다.</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="font-semibold text-gray-900 mr-2">• 자기주도성:</span>
+                    <span>학생이 주도적으로 수행한 역할, 노력, 탐구 과정 등을 부각한다.</span>
+                  </li>
+                </ul>
+              </section>
+
+              {/* II. 기재 금지 항목 */}
+              <section>
+                <h3 className="text-xl font-bold text-gray-800 mb-4">II. 기재 금지 항목 (입력 시 반드시 필터링)</h3>
+                <ul className="space-y-2 text-gray-700">
+                  <li>• 공인어학성적: 토익, 토플, 텝스, HSK 등 모든 공인어학시험 성적.</li>
+                  <li>• 외부 수상실적: 교외 기관에서 수상한 상장 및 실적. (교내 수상실적은 '수상경력' 항목에만 기재)</li>
+                  <li>• 논문 및 학회 발표: KCI 등재 여부를 불문하고 모든 논문, 학회 발표 사실.</li>
+                  <li>• 도서 출간 사실: 학생이 저자로 참여한 도서 출간 사실.</li>
+                  <li>• 지식재산권: 발명특허, 실용신안 등 지식재산권 관련 내용.</li>
+                  <li>• 해외 활동 실적: 어학연수 등 해외 활동 실적.</li>
+                  <li>• 교외 인증시험: 한자능력검정, 한국사능력검정시험 등 교외 인증시험 점수 및 등급.</li>
+                  <li>• 부모 및 가족 정보: 부모 및 친인척의 사회·경제적 지위(직업명, 직장명, 직위 등)를 암시하는 모든 내용.</li>
+                  <li>• 사교육 유발 요인: 특정 대학명, 기관명 언급, 고액 과외나 컨설팅 등을 암시하는 내용.</li>
+                  <li>• 자격증 취득 사항: '자격증 및 인증 취득상황' 란에 기재되지 않은 자격증 내용.</li>
+                </ul>
+              </section>
+
+              {/* III. 항목별 핵심 기재 요령 */}
+              <section>
+                <h3 className="text-xl font-bold text-gray-800 mb-4">III. 항목별 핵심 기재 요령</h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">인적·학적사항</h4>
+                    <p className="text-gray-700">학생 본인의 정보만 기재하며, '특기사항' 란에 부모 정보는 절대 기재하지 않는다.</p>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">출결상황</h4>
+                    <ul className="text-gray-700 space-y-1">
+                      <li>• '무단'이라는 용어는 '미인정'으로 통일하여 사용한다.</li>
+                      <li>• 결석, 지각, 조퇴, 결과 사유를 '미인정', '질병', '기타'로 명확히 구분한다.</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">창의적 체험활동상황</h4>
+                    <div className="space-y-3 ml-4">
+                      <div>
+                        <h5 className="font-medium text-gray-900 mb-1">자율활동 (연 500자)</h5>
+                        <p className="text-gray-700">학급·학교 내에서 학생의 역할(반장, 부장 등)과 그 역할을 통한 리더십, 협업 능력, 기여도를 구체적 사례로 서술한다.</p>
+                      </div>
+                      <div>
+                        <h5 className="font-medium text-gray-900 mb-1">동아리활동 (연 500자)</h5>
+                        <p className="text-gray-700">학생의 관심 분야와 진로 관련 탐구 역량을 보여주는 핵심 영역. 동아리 내 역할, 탐구 주제, 탐구 과정, 심화 학습 내용을 중심으로 기재한다. 자율 동아리는 학년당 1개만 기재</p>
+                      </div>
+                      <div>
+                        <h5 className="font-medium text-gray-900 mb-1">봉사활동</h5>
+                        <ul className="text-gray-700 space-y-1">
+                          <li>• 개인 봉사는 '학교교육계획에 따라 교사가 지도한 실적'만 기재.</li>
+                          <li>• 특기사항은 기재하지 않고 시간만 기록.</li>
+                          <li>• (대입에는 교내 봉사 실적만 반영됨)</li>
+                        </ul>
+                      </div>
+                      <div>
+                        <h5 className="font-medium text-gray-900 mb-1">진로활동 (연 700자)</h5>
+                        <p className="text-gray-700">학생의 진로 탐색 과정과 노력을 기록. 진로 검사, 상담, 체험, 탐구 활동 등을 통해 진로 희망이 어떻게 구체화되고 심화되었는지 서술한다.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">교과학습발달상황 (세부능력 및 특기사항)</h4>
+                    <p className="text-gray-700">수업 시간 중 학생의 학업 역량, 지적 호기심, 탐구 능력, 발표, 토론 태도 등을 구체적으로 서술한다. 단순 지식의 습득보다는, 특정 개념에 대한 심화 탐구, 과목 간 연계, 실생활 적용 사례 등을 중심으로 기재하여 학생의 우수성을 보여준다. 독서활동과 연계하여, 특정 책을 읽고 심화 탐구를 진행한 내용을 서술할 수 있다.</p>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">독서활동상황</h4>
+                    <ul className="text-gray-700 space-y-1">
+                      <li>• '도서명(저자)' 형식을 반드시 준수한다. (예: 공중그네(오쿠다 히데오))</li>
+                      <li>• 줄거리 요약, 감상, 평가 등 서술형 내용은 일절 기재하지 않는다.</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">행동특성 및 종합의견 (연 500자)</h4>
+                    <p className="text-gray-700">담임교사가 1년간 학생을 종합적으로 관찰한 내용을 바탕으로 인성, 잠재력, 성장 가능성 등을 구체적인 사례를 근거로 작성한다. 학생의 장점을 중심으로 긍정적으로 서술하되, 단점의 경우 개선 및 성장 모습과 함께 기록할 수 있다.</p>
+                  </div>
+                </div>
+              </section>
+
+              {/* IV. 서식 및 문체 규칙 */}
+              <section>
+                <h3 className="text-xl font-bold text-gray-800 mb-4">IV. 서식 및 문체 규칙</h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">명사형 어미 사용</h4>
+                    <p className="text-gray-700 mb-2">모든 서술형 문장의 어미는 '~함', '~음', '~됨' 등 명사형으로 종결한다.</p>
+                    <div className="bg-green-50 border-l-4 border-green-500 p-3 mb-2">
+                      <p className="text-sm text-gray-700">✅ 올바른 예시: "관련 자료를 분석하여 논리적으로 발표함."</p>
+                    </div>
+                    <div className="bg-red-50 border-l-4 border-red-500 p-3">
+                      <p className="text-sm text-gray-700">❌ 잘못된 예시: "발표하였습니다." / "발표했다."</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">한글 사용 원칙</h4>
+                    <p className="text-gray-700 mb-2">가급적 한글로 작성하며, 의미 전달을 위해 꼭 필요한 경우에만 외국어를 병기하거나 괄호 안에 한자를 병기할 수 있다.</p>
+                    <div className="bg-green-50 border-l-4 border-green-500 p-3 mb-2">
+                      <p className="text-sm text-gray-700">✅ 예시: '딥러닝(Deep Learning)'</p>
+                    </div>
+                    <div className="bg-red-50 border-l-4 border-red-500 p-3">
+                      <p className="text-sm text-gray-700">❌ 예시: 'R&E(Research and Education) 프로그램' → '심화 연구 교육 프로그램'</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">1인칭 시점 금지</h4>
+                    <p className="text-gray-700">'저는', '제가' 등 학생의 시점에서 서술하는 문장은 허용되지 않는다.</p>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">축약어 및 은어 금지</h4>
+                    <p className="text-gray-700">'생기부', '세특'과 같은 축약어 대신 '학교생활기록부', '세부능력 및 특기사항' 등 공식 명칭을 사용한다.</p>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">간결성</h4>
+                    <p className="text-gray-700">문장은 간결하고 명확하게 작성하며, 미사여구나 불필요한 수식어 사용을 자제한다.</p>
+                  </div>
+                </div>
+              </section>
+
+              {/* V. 검증 체크리스트 */}
+              <section>
+                <h3 className="text-xl font-bold text-gray-800 mb-4">V. 검증 체크리스트</h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">기재 금지 항목 체크</h4>
+                    <ul className="space-y-1 text-gray-700">
+                      <li className="flex items-center">
+                        <input type="checkbox" className="mr-2" disabled />
+                        <span>공인어학성적 언급 없음</span>
+                      </li>
+                      <li className="flex items-center">
+                        <input type="checkbox" className="mr-2" disabled />
+                        <span>외부 수상실적 언급 없음</span>
+                      </li>
+                      <li className="flex items-center">
+                        <input type="checkbox" className="mr-2" disabled />
+                        <span>논문/학회 발표 언급 없음</span>
+                      </li>
+                      <li className="flex items-center">
+                        <input type="checkbox" className="mr-2" disabled />
+                        <span>부모/가족 정보 언급 없음</span>
+                      </li>
+                      <li className="flex items-center">
+                        <input type="checkbox" className="mr-2" disabled />
+                        <span>특정 대학명/기관명 언급 없음</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">문체 및 서식 체크</h4>
+                    <ul className="space-y-1 text-gray-700">
+                      <li className="flex items-center">
+                        <input type="checkbox" className="mr-2" disabled />
+                        <span>모든 문장이 명사형 어미로 종결됨</span>
+                      </li>
+                      <li className="flex items-center">
+                        <input type="checkbox" className="mr-2" disabled />
+                        <span>1인칭 시점 사용하지 않음</span>
+                      </li>
+                      <li className="flex items-center">
+                        <input type="checkbox" className="mr-2" disabled />
+                        <span>축약어 사용하지 않음</span>
+                      </li>
+                      <li className="flex items-center">
+                        <input type="checkbox" className="mr-2" disabled />
+                        <span>구체적인 사례와 근거 포함</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">내용 품질 체크</h4>
+                    <ul className="space-y-1 text-gray-700">
+                      <li className="flex items-center">
+                        <input type="checkbox" className="mr-2" disabled />
+                        <span>학생 고유의 특성이 드러남</span>
+                      </li>
+                      <li className="flex items-center">
+                        <input type="checkbox" className="mr-2" disabled />
+                        <span>과정 중심으로 서술됨</span>
+                      </li>
+                      <li className="flex items-center">
+                        <input type="checkbox" className="mr-2" disabled />
+                        <span>자기주도적 활동이 부각됨</span>
+                      </li>
+                      <li className="flex items-center">
+                        <input type="checkbox" className="mr-2" disabled />
+                        <span>객관적 사실에 근거함</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
