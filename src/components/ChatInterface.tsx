@@ -26,6 +26,7 @@ export interface Message {
   isComplete?: boolean
   canContinue?: boolean
   mode?: 'general' | 'school-record' // 메시지에 모드 정보 저장
+  category?: 'subject-detail' | 'activity' | 'behavior' | null // 카테고리 정보 저장
   metadata?: {
     chunks: number
     characters: number
@@ -142,7 +143,7 @@ export default function ChatInterface() {
     setUploadedFiles(prev => prev.filter(file => file.id !== fileId))
   }
 
-  const sendMessage = async (content: string, mode: 'general' | 'school-record' = 'general', isContinuation: boolean = false) => {
+  const sendMessage = async (content: string, mode: 'general' | 'school-record' = 'general', category: 'subject-detail' | 'activity' | 'behavior' | null = null, isContinuation: boolean = false) => {
     if (!content.trim() || isLoading) return
 
     const userMessage: Message = {
@@ -151,7 +152,8 @@ export default function ChatInterface() {
       role: 'user',
       timestamp: new Date(),
       attachedFiles: uploadedFiles.length > 0 ? [...uploadedFiles] : undefined,
-      mode: mode // 사용자 메시지에도 모드 저장
+      mode: mode, // 사용자 메시지에도 모드 저장
+      category: category // 카테고리 저장
     }
 
     setMessages(prev => [...prev, userMessage])
@@ -166,7 +168,8 @@ export default function ChatInterface() {
       role: 'assistant',
       timestamp: new Date(),
       isStreaming: true,
-      mode: mode // 어시스턴트 메시지에도 모드 저장
+      mode: mode, // 어시스턴트 메시지에도 모드 저장
+      category: category // 카테고리 저장
     }
 
     setMessages(prev => [...prev, assistantMessage])
@@ -197,7 +200,8 @@ export default function ChatInterface() {
               content: msgContent
             }
           }),
-          mode: mode
+          mode: mode,
+          category: category
         }),
         signal: controller.signal
       })
@@ -377,11 +381,12 @@ export default function ChatInterface() {
   }
 
   // 연속 요청 함수
-  const continueMessage = async (messageId: string, providedMode?: 'general' | 'school-record') => {
+  const continueMessage = async (messageId: string, providedMode?: 'general' | 'school-record', providedCategory?: 'subject-detail' | 'activity' | 'behavior' | null) => {
     if (isLoading) return
 
-    // 메시지에서 모드 추출 (제공된 모드가 없으면)
+    // 메시지에서 모드와 카테고리 추출 (제공된 값이 없으면)
     let targetMode: 'general' | 'school-record' = 'general'
+    let targetCategory: 'subject-detail' | 'activity' | 'behavior' | null = null
     
     if (providedMode) {
       targetMode = providedMode
@@ -393,10 +398,20 @@ export default function ChatInterface() {
       }
     }
 
-    console.log('🔄 연속 요청 시작:', { messageId, mode: targetMode })
+    if (providedCategory !== undefined) {
+      targetCategory = providedCategory
+    } else {
+      // messageId로 해당 메시지를 찾아서 카테고리 추출
+      const targetMessage = messages.find(msg => msg.id === messageId)
+      if (targetMessage && targetMessage.category) {
+        targetCategory = targetMessage.category
+      }
+    }
+
+    console.log('🔄 연속 요청 시작:', { messageId, mode: targetMode, category: targetCategory })
 
     // "계속 작성해주세요" 메시지 자동 전송 (간결하게 이어서 작성하도록 지시)
-    await sendMessage('위 내용에 이어서 간결하게 계속 작성해주세요.', targetMode, true)
+    await sendMessage('위 내용에 이어서 간결하게 계속 작성해주세요.', targetMode, targetCategory, true)
   }
 
   // 파일 내용 최적화 함수 (클라이언트용)

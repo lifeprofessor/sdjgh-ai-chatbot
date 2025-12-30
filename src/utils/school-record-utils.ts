@@ -234,7 +234,7 @@ ${guidelines}
 }
 
 // 토큰 최적화된 학교생활기록부 시스템 프롬프트 생성
-export function createOptimizedSchoolRecordPrompt(messages: any[], isContinuation: boolean = false): string {
+export function createOptimizedSchoolRecordPrompt(messages: any[], isContinuation: boolean = false, category: 'subject-detail' | 'activity' | 'behavior' | null = null): string {
   // 연속 요청인 경우 간소화된 프롬프트 사용
   if (isContinuation) {
     return `학교생활기록부 작성 전문가로서 이전 내용에 이어서 작성해주세요.
@@ -248,7 +248,7 @@ export function createOptimizedSchoolRecordPrompt(messages: any[], isContinuatio
 
   // 질문 내용에 따른 관련 가이드라인만 추출
   const lastUserMessage = messages[messages.length - 1]?.content || ''
-  const relevantGuidelines = extractRelevantGuidelines(lastUserMessage)
+  const relevantGuidelines = extractRelevantGuidelines(lastUserMessage, category)
 
   return `학교생활기록부 작성 전문가입니다. 다음 기재 원칙을 준수하여 작성해주세요.
 
@@ -263,22 +263,63 @@ ${relevantGuidelines}
 }
 
 // 질문 내용에 따른 관련 가이드라인 추출
-function extractRelevantGuidelines(userMessage: string): string {
+function extractRelevantGuidelines(userMessage: string, category: 'subject-detail' | 'activity' | 'behavior' | null = null): string {
   const guidelines = loadSchoolRecordGuidelines()
   const lowerMessage = userMessage.toLowerCase()
   
-  // 키워드별 관련 섹션 매핑
+  // 카테고리별 섹션 추출
+  if (category) {
+    let sectionTitle = ''
+    switch (category) {
+      case 'subject-detail':
+        sectionTitle = '### A. 교과 세부능력 및 특기사항 (세특)'
+        break
+      case 'activity':
+        sectionTitle = '### B. 창의적 체험활동 특기사항 (자율, 진로, 동아리)'
+        break
+      case 'behavior':
+        sectionTitle = '### C. 행동특성 및 종합의견 (행특)'
+        break
+    }
+
+    if (sectionTitle) {
+      const sectionStart = guidelines.indexOf(sectionTitle)
+      if (sectionStart !== -1) {
+        // 다음 ### 섹션까지 추출 (D섹션 전까지)
+        let nextSectionStart = guidelines.indexOf('### D.', sectionStart + 1)
+        if (nextSectionStart === -1) {
+          nextSectionStart = guidelines.indexOf('## V.', sectionStart + 1)
+        }
+        const sectionEnd = nextSectionStart !== -1 ? nextSectionStart : guidelines.length
+        const categorySection = guidelines.substring(sectionStart, sectionEnd).trim()
+
+        // 핵심역량 정보도 추가
+        const competencyStart = guidelines.indexOf('## III. 2022 개정 교육과정 핵심역량 및 필수 서술어')
+        const competencyEnd = guidelines.indexOf('## IV. 항목별 핵심 기재 요령')
+        const competencySection = competencyStart !== -1 && competencyEnd !== -1 
+          ? guidelines.substring(competencyStart, competencyEnd).trim() 
+          : ''
+
+        return `${categorySection}\n\n${competencySection}\n\n## 공통 기재 원칙:\n- 객관성: 교사가 직접 관찰한 사실 기반\n- 과정 중심: 동기, 과정, 성장, 변화 중심\n- 구체성: 구체적 사례와 근거 제시\n- 개별화: 학생 고유 특성 표현\n- 자기주도성: 학생 주도적 역할과 노력 부각\n- 교사 관찰 시점 유지: 학생의 주관적 감정이나 깨달음 절대 표현 금지`
+      }
+    }
+  }
+  
+  // 키워드별 관련 섹션 매핑 (카테고리가 선택되지 않은 경우)
   const sectionMap = {
-    '세특': '### 교과학습발달상황 (세부능력 및 특기사항)',
-    '세부능력': '### 교과학습발달상황 (세부능력 및 특기사항)',
-    '특기사항': '### 교과학습발달상황 (세부능력 및 특기사항)',
-    '동아리': '#### 동아리활동 (연 500자)',
-    '자율활동': '#### 자율활동 (연 500자)',
-    '봉사': '#### 봉사활동',
-    '진로': '#### 진로활동 (연 700자)',
-    '독서': '### 독서활동상황',
-    '행동특성': '### 행동특성 및 종합의견 (연 500자)',
-    '종합의견': '### 행동특성 및 종합의견 (연 500자)'
+    '세특': '### A. 교과 세부능력 및 특기사항 (세특)',
+    '세부능력': '### A. 교과 세부능력 및 특기사항 (세특)',
+    '특기사항': '### A. 교과 세부능력 및 특기사항 (세특)',
+    '교과': '### A. 교과 세부능력 및 특기사항 (세특)',
+    '동아리': '### B. 창의적 체험활동 특기사항 (자율, 진로, 동아리)',
+    '자율활동': '### B. 창의적 체험활동 특기사항 (자율, 진로, 동아리)',
+    '창의적': '### B. 창의적 체험활동 특기사항 (자율, 진로, 동아리)',
+    '체험활동': '### B. 창의적 체험활동 특기사항 (자율, 진로, 동아리)',
+    '진로': '### B. 창의적 체험활동 특기사항 (자율, 진로, 동아리)',
+    '독서': '### D. 기타 항목별 기재 요령',
+    '행동특성': '### C. 행동특성 및 종합의견 (행특)',
+    '종합의견': '### C. 행동특성 및 종합의견 (행특)',
+    '행특': '### C. 행동특성 및 종합의견 (행특)'
   }
 
   // 관련 섹션 찾기
@@ -287,16 +328,25 @@ function extractRelevantGuidelines(userMessage: string): string {
     if (lowerMessage.includes(keyword)) {
       const sectionStart = guidelines.indexOf(section)
       if (sectionStart !== -1) {
-        const nextSectionStart = guidelines.indexOf('###', sectionStart + 1)
+        let nextSectionStart = guidelines.indexOf('###', sectionStart + section.length)
+        if (section.includes('### A.') || section.includes('### B.') || section.includes('### C.')) {
+          // A, B, C 섹션의 경우 다음 ###가 나올 때까지
+          const possibleEnds = [
+            guidelines.indexOf('### D.', sectionStart + 1),
+            guidelines.indexOf('## V.', sectionStart + 1)
+          ].filter(idx => idx !== -1)
+          nextSectionStart = possibleEnds.length > 0 ? Math.min(...possibleEnds) : guidelines.length
+        }
         const sectionEnd = nextSectionStart !== -1 ? nextSectionStart : guidelines.length
         relevantSections.push(guidelines.substring(sectionStart, sectionEnd).trim())
+        break // 첫 번째 매칭된 섹션만 사용
       }
     }
   }
 
   // 관련 섹션이 있으면 해당 섹션만, 없으면 핵심 원칙만 반환
   if (relevantSections.length > 0) {
-    return `## 관련 기재 원칙:\n${relevantSections.join('\n\n')}\n\n## 공통 기재 원칙:\n- 객관성: 교사가 직접 관찰한 사실 기반\n- 과정 중심: 동기, 과정, 성장, 변화 중심\n- 구체성: 구체적 사례와 근거 제시\n- 개별화: 학생 고유 특성 표현\n- 자기주도성: 학생 주도적 역할과 노력 부각`
+    return `## 관련 기재 원칙:\n${relevantSections.join('\n\n')}\n\n## 공통 기재 원칙:\n- 객관성: 교사가 직접 관찰한 사실 기반\n- 과정 중심: 동기, 과정, 성장, 변화 중심\n- 구체성: 구체적 사례와 근거 제시\n- 개별화: 학생 고유 특성 표현\n- 자기주도성: 학생 주도적 역할과 노력 부각\n- 교사 관찰 시점 유지: 학생의 주관적 감정이나 깨달음 절대 표현 금지`
   }
 
   // 기본 핵심 원칙만 반환 (토큰 대폭 절약)
@@ -306,6 +356,7 @@ function extractRelevantGuidelines(userMessage: string): string {
 - 구체성: 추상적 표현 지양, 구체적 사례와 근거 제시
 - 개별화: 학생 고유의 특성과 역량 표현
 - 자기주도성: 학생이 주도한 역할, 노력, 탐구과정 부각
+- 교사 관찰 시점 유지: 학생의 주관적 감정이나 깨달음 절대 표현 금지
 
 ## 주요 금지사항:
 - 공인어학성적 (토익, 토플, 텝스, HSK 등)
@@ -314,6 +365,7 @@ function extractRelevantGuidelines(userMessage: string): string {
 - 부모/가족 정보 (직업, 직장, 사회경제적 지위)
 - 특정 대학명, 기관명 언급
 - 1인칭 시점 ('저는', '제가' 등)
+- 학생 시점 표현 (~을 깨달음, ~을 알게 됨, ~라고 느낌, 계기가 되었음, ~다짐함)
 - 축약어 ('생기부', '세특' → '학교생활기록부', '세부능력 및 특기사항')`
 }
 

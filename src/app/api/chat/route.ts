@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       apiKey: session.api_key,
     })
 
-    const { messages, mode } = await request.json()
+    const { messages, mode, category } = await request.json()
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
 
     console.log('🔍 학교생활기록부 검증 디버깅:', {
       mode,
+      category,
       isSchoolRecordRequest,
       lastUserMessage: messages[messages.length - 1]?.content?.substring(0, 100) + '...',
       messageCount: messages.length
@@ -61,12 +62,12 @@ export async function POST(request: NextRequest) {
     // 학교생활기록부 요청인 경우 시스템 프롬프트 추가
     let processedMessages = [...optimizedMessages]
     if (isSchoolRecordRequest) {
-      const systemPrompt = createOptimizedSchoolRecordPrompt(messages, isContinuation)
+      const systemPrompt = createOptimizedSchoolRecordPrompt(messages, isContinuation, category)
       processedMessages = [
         { role: 'system', content: systemPrompt },
         ...optimizedMessages
       ]
-      console.log('📋 최적화된 학교생활기록부 프롬프트 적용됨 (모드:', mode, ', 연속:', isContinuation, ')')
+      console.log('📋 최적화된 학교생활기록부 프롬프트 적용됨 (모드:', mode, ', 카테고리:', category, ', 연속:', isContinuation, ')')
       
       // 프롬프트 내용을 터미널에 로그로 출력
       console.log('\n' + '='.repeat(80))

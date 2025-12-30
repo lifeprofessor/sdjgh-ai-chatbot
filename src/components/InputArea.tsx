@@ -11,8 +11,10 @@ interface UploadedFile {
   uploadedAt: Date
 }
 
+type SchoolRecordCategory = 'subject-detail' | 'activity' | 'behavior' | null
+
 interface InputAreaProps {
-  onSendMessage: (message: string, mode?: 'general' | 'school-record') => void
+  onSendMessage: (message: string, mode?: 'general' | 'school-record', category?: SchoolRecordCategory) => void
   disabled?: boolean
   onFileUpload?: (files: FileList) => void
   uploadedFiles?: UploadedFile[]
@@ -28,6 +30,7 @@ export default function InputArea({
 }: InputAreaProps) {
   const [message, setMessage] = useState('')
   const [selectedMode, setSelectedMode] = useState<'general' | 'school-record'>('general')
+  const [selectedCategory, setSelectedCategory] = useState<SchoolRecordCategory>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -47,7 +50,7 @@ export default function InputArea({
 
   const handleSubmit = () => {
     if (message.trim() && !disabled) {
-      onSendMessage(message.trim(), selectedMode)
+      onSendMessage(message.trim(), selectedMode, selectedCategory)
       setMessage('')
       // 메시지 초기화 후 높이도 초기화
       setTimeout(adjustHeight, 0)
@@ -87,8 +90,11 @@ export default function InputArea({
       {/* 모드 선택 버튼들 */}
       <div className="mb-4">
         <div className="flex gap-2 flex-wrap">
-        <button
-            onClick={() => setSelectedMode('school-record')}
+          <button
+            onClick={() => {
+              setSelectedMode('school-record')
+              if (!selectedCategory) setSelectedCategory('subject-detail')
+            }}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
               selectedMode === 'school-record'
                 ? 'bg-green-100 text-green-700 border-2 border-green-300'
@@ -102,7 +108,10 @@ export default function InputArea({
           </button>
 
           <button
-            onClick={() => setSelectedMode('general')}
+            onClick={() => {
+              setSelectedMode('general')
+              setSelectedCategory(null)
+            }}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
               selectedMode === 'general'
                 ? 'bg-blue-100 text-blue-700 border-2 border-blue-300'
@@ -114,16 +123,58 @@ export default function InputArea({
             </svg>
             일반 채팅
           </button>
-
-          
         </div>
+        
+        {/* 학교생활기록부 카테고리 선택 */}
+        {selectedMode === 'school-record' && (
+          <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
+            <div className="text-xs font-semibold text-green-800 mb-2">📂 작성 항목 선택:</div>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => setSelectedCategory('subject-detail')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  selectedCategory === 'subject-detail'
+                    ? 'bg-green-600 text-white'
+                    : 'bg-white text-green-700 border border-green-300 hover:bg-green-100'
+                }`}
+              >
+                📚 교과 세부능력 및 특기사항
+              </button>
+              <button
+                onClick={() => setSelectedCategory('activity')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  selectedCategory === 'activity'
+                    ? 'bg-green-600 text-white'
+                    : 'bg-white text-green-700 border border-green-300 hover:bg-green-100'
+                }`}
+              >
+                🎯 창의적 체험활동 특기사항
+              </button>
+              <button
+                onClick={() => setSelectedCategory('behavior')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  selectedCategory === 'behavior'
+                    ? 'bg-green-600 text-white'
+                    : 'bg-white text-green-700 border border-green-300 hover:bg-green-100'
+                }`}
+              >
+                ⭐ 행동특성 및 종합의견
+              </button>
+            </div>
+          </div>
+        )}
         
         {/* 선택된 모드 설명 */}
         <div className="mt-2 text-xs text-gray-600">
           {selectedMode === 'general' ? (
             <span>💬 일반적인 대화와 질문에 답변합니다.</span>
           ) : (
-            <span>📋 학교생활기록부 기재 원칙을 준수하여 작성합니다. (기재 금지 항목 자동 검증)</span>
+            <span>
+              📋 학교생활기록부 기재 원칙을 준수하여 작성합니다. 
+              {selectedCategory === 'subject-detail' && ' (교과 세부능력 및 특기사항 작성 모드)'}
+              {selectedCategory === 'activity' && ' (창의적 체험활동 특기사항 작성 모드)'}
+              {selectedCategory === 'behavior' && ' (행동특성 및 종합의견 작성 모드)'}
+            </span>
           )}
         </div>
       </div>
