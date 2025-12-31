@@ -282,6 +282,13 @@ function extractRelevantGuidelines(
     processedGuidelines = processedGuidelines.replace('[교과명]', options.subject)
   }
   
+  // 역할(Role) 섹션 추출
+  const roleStart = processedGuidelines.indexOf('## 역할 (Role)')
+  const roleEnd = processedGuidelines.indexOf('## I. 공통 기재 원칙')
+  const roleSection = roleStart !== -1 && roleEnd !== -1
+    ? processedGuidelines.substring(roleStart, roleEnd).trim()
+    : ''
+  
   // 카테고리별 섹션 추출
   if (category) {
     let sectionTitle = ''
@@ -331,7 +338,8 @@ function extractRelevantGuidelines(
           ? processedGuidelines.substring(competencyStart, competencyEnd).trim() 
           : ''
 
-        return `${categorySection}\n\n${competencySection}\n\n## 공통 기재 원칙:\n- 객관성: 교사가 직접 관찰한 사실 기반\n- 과정 중심: 동기, 과정, 성장, 변화 중심\n- 구체성: 구체적 사례와 근거 제시\n- 개별화: 학생 고유 특성 표현\n- 자기주도성: 학생 주도적 역할과 노력 부각\n- 교사 관찰 시점 유지: 학생의 주관적 감정이나 깨달음 절대 표현 금지`
+        // 역할 섹션을 맨 앞에 포함
+        return `${roleSection}\n\n${categorySection}\n\n${competencySection}\n\n## 공통 기재 원칙:\n- 객관성: 교사가 직접 관찰한 사실 기반\n- 과정 중심: 동기, 과정, 성장, 변화 중심\n- 구체성: 구체적 사례와 근거 제시\n- 개별화: 학생 고유 특성 표현\n- 자기주도성: 학생 주도적 역할과 노력 부각\n- 교사 관찰 시점 유지: 학생의 주관적 감정이나 깨달음 절대 표현 금지`
       }
     }
   }

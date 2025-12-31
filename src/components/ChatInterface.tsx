@@ -285,15 +285,13 @@ export default function ChatInterface() {
                       : msg
                   ))
                   
-                  console.log(`📤 청크 ${data.chunkCount}: "${data.content}"`)
-                  
                 } else if (data.type === 'complete') {
                   // 응답 완료
                   isComplete = data.isComplete
                   responseMetadata = data.metadata || {
                     chunks: data.totalChunks,
                     characters: data.totalTokens,
-                    model: 'claude-sonnet-4-20250514'
+                    model: 'claude-sonnet-4-5-20250929'
                   }
                   
                   console.log('✅ 스트리밍 응답 완료:', {

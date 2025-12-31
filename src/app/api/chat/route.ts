@@ -68,17 +68,32 @@ export async function POST(request: NextRequest) {
         { role: 'system', content: systemPrompt },
         ...optimizedMessages
       ]
-      console.log('📋 최적화된 학교생활기록부 프롬프트 적용됨 (모드:', mode, ', 카테고리:', category, ', 옵션:', options, ', 연속:', isContinuation, ')')
       
       // 프롬프트 내용을 터미널에 로그로 출력
-      console.log('\n' + '='.repeat(80))
-      console.log('🎯 학교생활기록부 시스템 프롬프트:')
-      console.log('='.repeat(80))
+      console.log('\n' + '='.repeat(100))
+      console.log('🎯 학교생활기록부 시스템 프롬프트')
+      console.log('='.repeat(100))
+      console.log('📋 요청 정보:')
+      console.log('  - 모드:', mode)
+      console.log('  - 카테고리:', category || '지정 안 됨')
+      if (options) {
+        console.log('  - 교과명:', options.subject || '지정 안 됨')
+        console.log('  - 작성 수준:', options.level || '지정 안 됨', 
+          options.level === 'advanced' ? '(상급 500자)' :
+          options.level === 'intermediate' ? '(중급 400~500자)' :
+          options.level === 'basic' ? '(기본 200~300자)' : '')
+      }
+      console.log('  - 연속 작성:', isContinuation ? 'Yes' : 'No')
+      console.log('-'.repeat(100))
+      console.log('📄 시스템 프롬프트 내용:')
+      console.log('-'.repeat(100))
       console.log(systemPrompt)
-      console.log('='.repeat(80))
+      console.log('-'.repeat(100))
       console.log('📝 사용자 메시지:')
-      console.log(optimizedMessages[optimizedMessages.length - 1]?.content || '메시지 없음')
-      console.log('='.repeat(80) + '\n')
+      console.log('-'.repeat(100))
+      const userMsg = optimizedMessages[optimizedMessages.length - 1]?.content || '메시지 없음'
+      console.log(userMsg.length > 500 ? userMsg.substring(0, 500) + '... (생략)' : userMsg)
+      console.log('='.repeat(100) + '\n')
     }
 
     // 58초 타임아웃에 맞춰 토큰 수 증가 (연속 요청일 때는 상대적으로 적게)
@@ -88,7 +103,7 @@ export async function POST(request: NextRequest) {
     const estimatedInputTokens = estimateTokens(processedMessages)
     
     console.log('📨 Claude API 요청 시작:', {
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-5-20250929',
       max_tokens: maxTokens,
       message_count: processedMessages.length,
       estimated_input_tokens: estimatedInputTokens,
@@ -113,7 +128,7 @@ export async function POST(request: NextRequest) {
       }, 58000)
 
       const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-5-20250929',
         max_tokens: maxTokens, // 연속 요청 시 더 적은 토큰 사용
         messages: processedMessages.map((msg: any) => ({
           role: msg.role === 'user' ? 'user' : (msg.role === 'system' ? 'user' : 'assistant'),
@@ -134,7 +149,7 @@ export async function POST(request: NextRequest) {
               chunkCount++
               
               if (chunk.type === 'content_block_start') {
-                console.log('📝 콘텐츠 블록 시작')
+                // 콘텐츠 블록 시작
               } else if (chunk.type === 'content_block_delta') {
                 if ('text' in chunk.delta) {
                   totalTokens += chunk.delta.text.length
@@ -147,18 +162,15 @@ export async function POST(request: NextRequest) {
                     chunkCount: chunkCount
                   }
                   controller.enqueue(`data: ${JSON.stringify(chunkData)}\n\n`)
-                  console.log(`📤 청크 ${chunkCount}: "${chunk.delta.text}" (길이: ${chunk.delta.text.length})`)
                 }
               } else if (chunk.type === 'content_block_stop') {
-                console.log('📝 콘텐츠 블록 완료')
+                // 콘텐츠 블록 완료
               } else if (chunk.type === 'message_stop') {
-                console.log('🏁 메시지 완료')
                 isComplete = true
               }
             }
             
             clearTimeout(timeoutId)
-            console.log(`✅ 응답 수집 완료! 총 청크: ${chunkCount}, 총 문자 수: ${totalTokens}, 완료 여부: ${isComplete}`)
             
             // 학교생활기록부 요청인 경우 원문 검증
             let validationResult = null
@@ -217,7 +229,7 @@ export async function POST(request: NextRequest) {
               metadata: {
                 chunks: chunkCount,
                 characters: totalTokens,
-                model: 'claude-sonnet-4-20250514',
+                model: 'claude-sonnet-4-5-20250929',
                 maxTokens: maxTokens,
                 timeout: false,
                 isContinuation: isContinuation,
