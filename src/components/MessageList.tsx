@@ -235,7 +235,7 @@ export default function MessageList({ messages, onContinueMessage }: MessageList
                       <svg className="w-5 h-5 text-yellow-600 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                       </svg>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <h4 className="text-sm font-medium text-yellow-800 mb-3">
                           ⚠️ {message.validation.isOriginalContent ? '원문' : 'AI 응답'}에서 기재원칙 위반 사항 발견 ({message.validation.violations.length}개 항목)
                         </h4>
@@ -248,25 +248,53 @@ export default function MessageList({ messages, onContinueMessage }: MessageList
                             const severityEmoji = violation.severity === 'critical' ? '🚨' : 
                                                  violation.severity === 'warning' ? '⚠️' : 'ℹ️'
                             
+                            const violationText = `[${violation.type}]\n발견된 내용: "${violation.found}"\n원문 위치: ${violation.context}\n수정 제안: ${violation.suggestion}`
+                            
                             return (
-                              <div key={index} className={`${severityBg} border rounded-md p-3`}>
-                                <div className={`text-sm font-medium ${severityColor} mb-2`}>
+                              <div key={index} className={`${severityBg} border rounded-md p-3 relative group/violation`}>
+                                {/* 복사 버튼 */}
+                                <button
+                                  onClick={() => copyToClipboard(violationText, `violation-${message.id}-${index}`)}
+                                  className="absolute top-2 right-2 opacity-0 group-hover/violation:opacity-100 transition-opacity duration-200 p-1.5 rounded hover:bg-white/50 text-gray-500 hover:text-gray-700"
+                                  title={copiedMessageId === `violation-${message.id}-${index}` ? "복사됨!" : "이 항목 복사"}
+                                >
+                                  {copiedMessageId === `violation-${message.id}-${index}` ? (
+                                    <svg className="w-3.5 h-3.5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  ) : (
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                  )}
+                                </button>
+
+                                <div className={`text-sm font-medium ${severityColor} mb-2 pr-8`}>
                                   {severityEmoji} {violation.type}
                                 </div>
-                                <div className="text-xs text-gray-600 mb-1">
-                                  <strong>발견된 내용:</strong> <span className="font-mono bg-gray-100 px-1 rounded">"{violation.found}"</span>
+                                <div className="text-xs text-gray-700 mb-2 space-y-1.5">
+                                  <div className="break-words">
+                                    <strong className="text-gray-900">발견된 내용:</strong>{' '}
+                                    <span className="font-mono bg-white px-2 py-0.5 rounded border border-gray-200 inline-block mt-1">
+                                      {violation.found}
+                                    </span>
+                                  </div>
+                                  <div className="break-words whitespace-pre-wrap">
+                                    <strong className="text-gray-900">원문 위치:</strong>{' '}
+                                    <span className="text-gray-600 inline-block mt-1">
+                                      {violation.context}
+                                    </span>
+                                  </div>
                                 </div>
-                                <div className="text-xs text-gray-600 mb-2">
-                                  <strong>원문 위치:</strong> {violation.context}
-                                </div>
-                                <div className={`text-xs ${severityColor} bg-white/70 rounded px-2 py-1 border-l-2 ${violation.severity === 'critical' ? 'border-red-400' : violation.severity === 'warning' ? 'border-yellow-400' : 'border-blue-400'}`}>
-                                  <strong>💡 수정 제안:</strong> {violation.suggestion}
+                                <div className={`text-xs ${severityColor} bg-white/70 rounded px-3 py-2 border-l-2 ${violation.severity === 'critical' ? 'border-red-400' : violation.severity === 'warning' ? 'border-yellow-400' : 'border-blue-400'} break-words whitespace-pre-wrap`}>
+                                  <strong className="block mb-1">💡 수정 제안:</strong>
+                                  <span className="text-gray-800">{violation.suggestion}</span>
                                 </div>
                               </div>
                             )
                           })}
                         </div>
-                        <div className="mt-3 text-xs text-yellow-700 bg-yellow-100 rounded px-3 py-2 border border-yellow-300">
+                        <div className="mt-3 text-xs text-yellow-700 bg-yellow-100 rounded px-3 py-2 border border-yellow-300 break-words">
                           <strong>📝 다음 단계:</strong> 위 사항들을 참고하여 
                           <strong>
                             {message.validation.isOriginalContent 
