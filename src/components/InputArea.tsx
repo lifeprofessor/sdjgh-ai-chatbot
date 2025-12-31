@@ -13,8 +13,19 @@ interface UploadedFile {
 
 type SchoolRecordCategory = 'subject-detail' | 'activity' | 'behavior' | null
 
+type SubjectType = '국어' | '수학' | '영어' | '사회' | '과학' | '체육' | '미술' | '음악' | '정보' | '한문'
+type DetailLevel = 'advanced' | 'intermediate' | 'basic'
+
 interface InputAreaProps {
-  onSendMessage: (message: string, mode?: 'general' | 'school-record', category?: SchoolRecordCategory) => void
+  onSendMessage: (
+    message: string, 
+    mode?: 'general' | 'school-record', 
+    category?: SchoolRecordCategory,
+    options?: {
+      subject?: SubjectType
+      level?: DetailLevel
+    }
+  ) => void
   disabled?: boolean
   onFileUpload?: (files: FileList) => void
   uploadedFiles?: UploadedFile[]
@@ -31,6 +42,8 @@ export default function InputArea({
   const [message, setMessage] = useState('')
   const [selectedMode, setSelectedMode] = useState<'general' | 'school-record'>('general')
   const [selectedCategory, setSelectedCategory] = useState<SchoolRecordCategory>(null)
+  const [selectedSubject, setSelectedSubject] = useState<SubjectType>('국어')
+  const [selectedLevel, setSelectedLevel] = useState<DetailLevel>('intermediate')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -50,7 +63,11 @@ export default function InputArea({
 
   const handleSubmit = () => {
     if (message.trim() && !disabled) {
-      onSendMessage(message.trim(), selectedMode, selectedCategory)
+      const options = selectedMode === 'school-record' && selectedCategory === 'subject-detail'
+        ? { subject: selectedSubject, level: selectedLevel }
+        : undefined
+      
+      onSendMessage(message.trim(), selectedMode, selectedCategory, options)
       setMessage('')
       // 메시지 초기화 후 높이도 초기화
       setTimeout(adjustHeight, 0)
@@ -161,6 +178,75 @@ export default function InputArea({
                 ⭐ 행동특성 및 종합의견
               </button>
             </div>
+
+            {/* 교과 세부능력 및 특기사항 선택 시 추가 옵션 */}
+            {selectedCategory === 'subject-detail' && (
+              <div className="mt-3 space-y-3">
+                {/* 교과명 선택 */}
+                <div>
+                  <label className="text-xs font-semibold text-green-800 mb-1.5 block">
+                    📖 교과명:
+                  </label>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {(['국어', '수학', '영어', '사회', '과학', '체육', '미술', '음악', '정보', '한문'] as SubjectType[]).map((subject) => (
+                      <button
+                        key={subject}
+                        onClick={() => setSelectedSubject(subject)}
+                        className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
+                          selectedSubject === subject
+                            ? 'bg-green-600 text-white'
+                            : 'bg-white text-green-700 border border-green-200 hover:bg-green-50'
+                        }`}
+                      >
+                        {subject}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 작성 수준 선택 */}
+                <div>
+                  <label className="text-xs font-semibold text-green-800 mb-1.5 block">
+                    📊 작성 수준:
+                  </label>
+                  <div className="flex gap-2 flex-wrap">
+                    <button
+                      onClick={() => setSelectedLevel('advanced')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        selectedLevel === 'advanced'
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-white text-purple-700 border border-purple-200 hover:bg-purple-50'
+                      }`}
+                    >
+                      🥇 상급 (500자)
+                      <div className="text-[10px] opacity-80 mt-0.5">심화활동·독창적결과물</div>
+                    </button>
+                    <button
+                      onClick={() => setSelectedLevel('intermediate')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        selectedLevel === 'intermediate'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white text-blue-700 border border-blue-200 hover:bg-blue-50'
+                      }`}
+                    >
+                      🥈 중급 (400~500자)
+                      <div className="text-[10px] opacity-80 mt-0.5">일반참여·기본과제</div>
+                    </button>
+                    <button
+                      onClick={() => setSelectedLevel('basic')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        selectedLevel === 'basic'
+                          ? 'bg-orange-600 text-white'
+                          : 'bg-white text-orange-700 border border-orange-200 hover:bg-orange-50'
+                      }`}
+                    >
+                      🥉 기본 (200~300자)
+                      <div className="text-[10px] opacity-80 mt-0.5">참여도낮음·사실중심</div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
         
@@ -171,7 +257,10 @@ export default function InputArea({
           ) : (
             <span>
               📋 학교생활기록부 기재 원칙을 준수하여 작성합니다. 
-              {selectedCategory === 'subject-detail' && ' (교과 세부능력 및 특기사항 작성 모드)'}
+              {selectedCategory === 'subject-detail' && ` (${selectedSubject} 교과세특 · ${
+                selectedLevel === 'advanced' ? '상급 수준' : 
+                selectedLevel === 'intermediate' ? '중급 수준' : '기본 수준'
+              } 작성 모드)`}
               {selectedCategory === 'activity' && ' (창의적 체험활동 특기사항 작성 모드)'}
               {selectedCategory === 'behavior' && ' (행동특성 및 종합의견 작성 모드)'}
             </span>

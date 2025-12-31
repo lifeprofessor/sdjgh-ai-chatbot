@@ -234,7 +234,12 @@ ${guidelines}
 }
 
 // 토큰 최적화된 학교생활기록부 시스템 프롬프트 생성
-export function createOptimizedSchoolRecordPrompt(messages: any[], isContinuation: boolean = false, category: 'subject-detail' | 'activity' | 'behavior' | null = null): string {
+export function createOptimizedSchoolRecordPrompt(
+  messages: any[], 
+  isContinuation: boolean = false, 
+  category: 'subject-detail' | 'activity' | 'behavior' | null = null,
+  options?: { subject?: string; level?: string }
+): string {
   // 연속 요청인 경우 간소화된 프롬프트 사용
   if (isContinuation) {
     return `학교생활기록부 작성 전문가로서 이전 내용에 이어서 작성해주세요.
@@ -248,7 +253,7 @@ export function createOptimizedSchoolRecordPrompt(messages: any[], isContinuatio
 
   // 질문 내용에 따른 관련 가이드라인만 추출
   const lastUserMessage = messages[messages.length - 1]?.content || ''
-  const relevantGuidelines = extractRelevantGuidelines(lastUserMessage, category)
+  const relevantGuidelines = extractRelevantGuidelines(lastUserMessage, category, options)
 
   return `학교생활기록부 작성 전문가입니다. 다음 기재 원칙을 준수하여 작성해주세요.
 
@@ -263,9 +268,19 @@ ${relevantGuidelines}
 }
 
 // 질문 내용에 따른 관련 가이드라인 추출
-function extractRelevantGuidelines(userMessage: string, category: 'subject-detail' | 'activity' | 'behavior' | null = null): string {
+function extractRelevantGuidelines(
+  userMessage: string, 
+  category: 'subject-detail' | 'activity' | 'behavior' | null = null,
+  options?: { subject?: string; level?: string }
+): string {
   const guidelines = loadSchoolRecordGuidelines()
   const lowerMessage = userMessage.toLowerCase()
+  
+  // 역할 섹션을 교과명으로 치환
+  let processedGuidelines = guidelines
+  if (options?.subject) {
+    processedGuidelines = processedGuidelines.replace('[교과명]', options.subject)
+  }
   
   // 카테고리별 섹션 추출
   if (category) {
@@ -283,21 +298,37 @@ function extractRelevantGuidelines(userMessage: string, category: 'subject-detai
     }
 
     if (sectionTitle) {
-      const sectionStart = guidelines.indexOf(sectionTitle)
+      const sectionStart = processedGuidelines.indexOf(sectionTitle)
       if (sectionStart !== -1) {
         // 다음 ### 섹션까지 추출 (D섹션 전까지)
-        let nextSectionStart = guidelines.indexOf('### D.', sectionStart + 1)
+        let nextSectionStart = processedGuidelines.indexOf('### D.', sectionStart + 1)
         if (nextSectionStart === -1) {
-          nextSectionStart = guidelines.indexOf('## V.', sectionStart + 1)
+          nextSectionStart = processedGuidelines.indexOf('## V.', sectionStart + 1)
         }
-        const sectionEnd = nextSectionStart !== -1 ? nextSectionStart : guidelines.length
-        const categorySection = guidelines.substring(sectionStart, sectionEnd).trim()
+        const sectionEnd = nextSectionStart !== -1 ? nextSectionStart : processedGuidelines.length
+        let categorySection = processedGuidelines.substring(sectionStart, sectionEnd).trim()
+
+        // 교과세특인 경우 수준에 따라 필터링
+        if (category === 'subject-detail' && options?.level) {
+          const levelMap: { [key: string]: string } = {
+            'advanced': '🥇 상급 수준',
+            'intermediate': '🥈 중급 수준',
+            'basic': '🥉 기본 수준'
+          }
+          const levelName = levelMap[options.level]
+          
+          if (levelName) {
+            // 선택된 수준 정보 강조
+            categorySection = categorySection + `\n\n**현재 작성 수준: ${levelName}**
+작성 시 반드시 위의 ${levelName}에 해당하는 전략과 구조를 따라 작성해주세요.`
+          }
+        }
 
         // 핵심역량 정보도 추가
-        const competencyStart = guidelines.indexOf('## III. 2022 개정 교육과정 핵심역량 및 필수 서술어')
-        const competencyEnd = guidelines.indexOf('## IV. 항목별 핵심 기재 요령')
+        const competencyStart = processedGuidelines.indexOf('## III. 2022 개정 교육과정 핵심역량 및 필수 서술어')
+        const competencyEnd = processedGuidelines.indexOf('## IV. 항목별 핵심 기재 요령')
         const competencySection = competencyStart !== -1 && competencyEnd !== -1 
-          ? guidelines.substring(competencyStart, competencyEnd).trim() 
+          ? processedGuidelines.substring(competencyStart, competencyEnd).trim() 
           : ''
 
         return `${categorySection}\n\n${competencySection}\n\n## 공통 기재 원칙:\n- 객관성: 교사가 직접 관찰한 사실 기반\n- 과정 중심: 동기, 과정, 성장, 변화 중심\n- 구체성: 구체적 사례와 근거 제시\n- 개별화: 학생 고유 특성 표현\n- 자기주도성: 학생 주도적 역할과 노력 부각\n- 교사 관찰 시점 유지: 학생의 주관적 감정이나 깨달음 절대 표현 금지`
