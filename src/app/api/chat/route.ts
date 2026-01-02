@@ -45,14 +45,16 @@ export async function POST(request: NextRequest) {
       lastMessage.role === 'user' && 
       (lastMessage.content.includes('계속 작성') || lastMessage.content.includes('이어서'))
 
-    // 명시적으로 전달된 모드 확인 (일반 채팅 모드가 명시적으로 선택된 경우 내용에 관계없이 일반 대화로 처리)
-    const isSchoolRecordRequest = mode === 'school-record' && mode !== 'general'
+    // 명시적으로 전달된 모드 확인
+    const isSchoolRecordRequest = (mode === 'school-record' || mode === 'school-record-review') && mode !== 'general'
+    const isReviewMode = mode === 'school-record-review' // 검토 모드 확인
 
     console.log('🔍 학교생활기록부 검증 디버깅:', {
       mode,
       category,
       options,
       isSchoolRecordRequest,
+      isReviewMode,
       lastUserMessage: messages[messages.length - 1]?.content?.substring(0, 100) + '...',
       messageCount: messages.length
     })
@@ -63,7 +65,13 @@ export async function POST(request: NextRequest) {
     // 학교생활기록부 요청인 경우 시스템 프롬프트 추가
     let processedMessages = [...optimizedMessages]
     if (isSchoolRecordRequest) {
-      const systemPrompt = createOptimizedSchoolRecordPrompt(messages, isContinuation, category, options)
+      const systemPrompt = createOptimizedSchoolRecordPrompt(
+        messages, 
+        isContinuation, 
+        category, 
+        options,
+        isReviewMode ? 'review' : 'create' // 검토 모드 vs 작성 모드
+      )
       processedMessages = [
         { role: 'system', content: systemPrompt },
         ...optimizedMessages
@@ -74,7 +82,7 @@ export async function POST(request: NextRequest) {
       console.log('🎯 학교생활기록부 시스템 프롬프트')
       console.log('='.repeat(100))
       console.log('📋 요청 정보:')
-      console.log('  - 모드:', mode)
+      console.log('  - 모드:', mode, isReviewMode ? '(검토 모드)' : '(작성 모드)')
       console.log('  - 카테고리:', category || '지정 안 됨')
       if (options) {
         console.log('  - 교과명:', options.subject || '지정 안 됨')
@@ -105,6 +113,7 @@ export async function POST(request: NextRequest) {
     console.log('📨 Claude API 요청 시작:', {
       model: 'claude-sonnet-4-5-20250929',
       max_tokens: maxTokens,
+      temperature: 0.7,
       message_count: processedMessages.length,
       estimated_input_tokens: estimatedInputTokens,
       user: session.name,

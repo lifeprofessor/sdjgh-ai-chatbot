@@ -19,7 +19,7 @@ type DetailLevel = 'advanced' | 'intermediate' | 'basic'
 interface InputAreaProps {
   onSendMessage: (
     message: string, 
-    mode?: 'general' | 'school-record', 
+    mode?: 'general' | 'school-record' | 'school-record-review', // 검토 모드 추가
     category?: SchoolRecordCategory,
     options?: {
       subject?: SubjectType
@@ -40,7 +40,7 @@ export default function InputArea({
   onRemoveFile 
 }: InputAreaProps) {
   const [message, setMessage] = useState('')
-  const [selectedMode, setSelectedMode] = useState<'general' | 'school-record'>('general')
+  const [selectedMode, setSelectedMode] = useState<'general' | 'school-record' | 'school-record-review'>('general')
   const [selectedCategory, setSelectedCategory] = useState<SchoolRecordCategory>(null)
   const [selectedSubject, setSelectedSubject] = useState<SubjectType>('국어')
   const [selectedLevel, setSelectedLevel] = useState<DetailLevel>('intermediate')
@@ -63,7 +63,7 @@ export default function InputArea({
 
   const handleSubmit = () => {
     if (message.trim() && !disabled) {
-      const options = selectedMode === 'school-record' && selectedCategory === 'subject-detail'
+      const options = (selectedMode === 'school-record' || selectedMode === 'school-record-review') && selectedCategory === 'subject-detail'
         ? { subject: selectedSubject, level: selectedLevel }
         : undefined
       
@@ -119,9 +119,26 @@ export default function InputArea({
             }`}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
-            학교생활기록부 작성
+            생기부 작성
+          </button>
+
+          <button
+            onClick={() => {
+              setSelectedMode('school-record-review')
+              setSelectedCategory(null)
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+              selectedMode === 'school-record-review'
+                ? 'bg-orange-100 text-orange-700 border-2 border-orange-300'
+                : 'bg-gray-100 text-gray-700 border-2 border-gray-200 hover:bg-gray-200'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
+            생기부 검토
           </button>
 
           <button
@@ -141,6 +158,25 @@ export default function InputArea({
             일반 채팅
           </button>
         </div>
+        
+        {/* 생기부 검토 모드 안내 */}
+        {selectedMode === 'school-record-review' && (
+          <div className="mt-3 p-4 bg-orange-50 rounded-lg border border-orange-200">
+            <div className="flex items-start gap-2">
+              <svg className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="flex-1">
+                <div className="text-sm font-semibold text-orange-800 mb-1">📋 생기부 검토 모드</div>
+                <div className="text-xs text-orange-700 space-y-1">
+                  <p>• 작성하신 생기부 원문을 아래에 붙여넣어 주세요</p>
+                  <p>• AI가 기재 원칙 위반 사항을 검토하고 개선안을 제시합니다</p>
+                  <p>• 금지 항목, 문체, 표현 등을 종합적으로 점검합니다</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* 학교생활기록부 카테고리 선택 */}
         {selectedMode === 'school-record' && (

@@ -9,7 +9,7 @@ import Image from 'next/image'
 
 interface MessageListProps {
   messages: Message[]
-  onContinueMessage?: (messageId: string, mode?: 'general' | 'school-record') => void
+  onContinueMessage?: (messageId: string, mode?: 'general' | 'school-record' | 'school-record-review') => void
 }
 
 function TypewriterText({ text, isStreaming }: { text: string, isStreaming?: boolean }) {

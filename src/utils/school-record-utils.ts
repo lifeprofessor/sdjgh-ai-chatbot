@@ -215,6 +215,78 @@ export function validateSchoolRecord(content: string): { isValid: boolean; viola
   }
 }
 
+// 학교생활기록부 검토 전용 프롬프트 생성
+export function createSchoolRecordReviewPrompt(): string {
+  return `당신은 학교생활기록부 기재 원칙 검토 전문가입니다.
+
+**역할:**
+선생님이 작성한 학교생활기록부 원문을 검토하고, 기재 원칙 위반 사항을 명확히 지적한 후 구체적인 개선안을 제시합니다.
+
+**검토 순서:**
+
+1️⃣ **원문 분석**
+   - 제공된 원문을 문장별로 꼼꼼히 검토
+
+2️⃣ **위반 사항 지적** (발견된 경우)
+   각 위반 사항마다 다음 형식으로 명확히 표시:
+   
+   【문제 ①】 (위반 유형)
+   - 원문 내용: "실제 문장 인용"
+   - 문제점: 왜 이것이 기재 원칙에 위배되는지 설명
+   - 수정 제안: 구체적인 개선 방향
+   
+3️⃣ **개선된 버전 제시**
+   - 위반 사항을 수정한 개선안 전체 작성
+   - 수정된 부분은 **굵게** 표시하여 변경사항을 명확히 함
+
+**반드시 검토할 기재 금지 항목:**
+- 공인어학성적 (토익, 토플, 텝스, HSK 등)
+- 외부 수상실적 (교외 기관 수상)
+- 논문/학회 발표
+- 부모/가족 정보 (직업, 직장, 사회경제적 지위)
+- 특정 대학명, 기관명, 영어 브랜드명 (ChatGPT, Gemini 등 → '생성형 AI', '대화형 모델'로 대체)
+- 1인칭 시점 ('저는', '제가')
+- 학생 시점 표현 (~을 깨달음, ~을 알게 됨, ~라고 느낀, 계기가 되었음, ~다짐함)
+- 축약어 ('생기부', '세특' 등 → '학교생활기록부', '세부능력 및 특기사항')
+- 잘못된 어미 (~했다, ~습니다 대신 ~함, ~임 사용)
+- 금지 기호 (마크다운 문법, 특수기호 《》『』「」〈〉·)
+
+**검토 결과 형식:**
+
+## 📋 원문 검토 결과
+
+### ✅ 준수된 사항
+- (잘 작성된 부분 구체적으로 칭찬)
+
+### ⚠️ 수정이 필요한 사항
+
+【문제 ①】 (위반 유형)
+- 원문: "(실제 문장 인용)"
+- 문제점: (상세 설명)
+- 수정 제안: (구체적 방향)
+
+(필요한 만큼 반복)
+
+### ✨ 개선안
+
+(수정된 전체 내용 작성. 수정 부분은 **굵게** 표시)
+
+---
+
+**만약 위반 사항이 전혀 없다면:**
+
+## ✅ 검토 결과: 기재 원칙 준수
+
+제공하신 내용은 학교생활기록부 기재 원칙을 잘 준수하고 있습니다.
+
+**잘된 점:**
+- (구체적으로 잘된 점 나열)
+
+**선택적 개선 제안:**
+- (더 나은 표현이나 추가할 내용 제안)
+`
+}
+
 // 학교생활기록부 작성을 위한 시스템 프롬프트 생성 (기존 함수 - 호환성 유지)
 export function createSchoolRecordSystemPrompt(): string {
   const guidelines = loadSchoolRecordGuidelines()
@@ -238,8 +310,14 @@ export function createOptimizedSchoolRecordPrompt(
   messages: any[], 
   isContinuation: boolean = false, 
   category: 'subject-detail' | 'activity' | 'behavior' | null = null,
-  options?: { subject?: string; level?: string }
+  options?: { subject?: string; level?: string },
+  mode: 'create' | 'review' = 'create' // 작성 모드 vs 검토 모드
 ): string {
+  // 검토 모드인 경우 검토 전용 프롬프트 반환
+  if (mode === 'review') {
+    return createSchoolRecordReviewPrompt()
+  }
+
   // 연속 요청인 경우 간소화된 프롬프트 사용
   if (isContinuation) {
     return `학교생활기록부 작성 전문가로서 이전 내용에 이어서 작성해주세요.
@@ -325,9 +403,42 @@ function extractRelevantGuidelines(
           const levelName = levelMap[options.level]
           
           if (levelName) {
-            // 선택된 수준 정보 강조
-            categorySection = categorySection + `\n\n**현재 작성 수준: ${levelName}**
-작성 시 반드시 위의 ${levelName}에 해당하는 전략과 구조를 따라 작성해주세요.`
+            // 선택된 수준만 남기고 다른 수준 섹션 제거
+            const levelMarkers = ['🥇 상급 수준', '🥈 중급 수준', '🥉 기본 수준']
+            
+            // 선택된 수준의 시작 위치 찾기
+            const selectedLevelStart = categorySection.indexOf(levelName)
+            
+            if (selectedLevelStart !== -1) {
+              // 다음 수준 마커의 위치 찾기 (선택된 수준의 끝)
+              let selectedLevelEnd = categorySection.length
+              for (const marker of levelMarkers) {
+                if (marker !== levelName) {
+                  const markerPos = categorySection.indexOf(marker, selectedLevelStart + levelName.length)
+                  if (markerPos !== -1 && markerPos < selectedLevelEnd) {
+                    selectedLevelEnd = markerPos
+                  }
+                }
+              }
+              
+              // 선택된 수준 섹션만 추출
+              const selectedLevelSection = categorySection.substring(selectedLevelStart, selectedLevelEnd).trim()
+              
+              // 수준별 작성 전략 헤더 이전 부분 (공통 설명)
+              const commonSectionEnd = categorySection.indexOf('#### 수준별 작성 전략')
+              const commonSection = commonSectionEnd !== -1 
+                ? categorySection.substring(0, commonSectionEnd).trim() 
+                : categorySection.substring(0, categorySection.indexOf('**🥇 상급 수준')).trim()
+              
+              // 우수 작성 사례 섹션 (모든 수준에 공통으로 필요할 수 있음)
+              const exampleStart = categorySection.indexOf('#### 우수 작성 사례')
+              const exampleSection = exampleStart !== -1 
+                ? '\n\n' + categorySection.substring(exampleStart).trim() 
+                : ''
+              
+              // 재조합: 공통 설명 + 선택된 수준 + 예시
+              categorySection = `${commonSection}\n\n#### 작성 수준\n${selectedLevelSection}${exampleSection}\n\n**현재 작성 수준: ${levelName}**\n작성 시 위의 ${levelName} 전략과 구조를 따라 작성해주세요.`
+            }
           }
         }
 

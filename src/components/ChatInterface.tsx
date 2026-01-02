@@ -25,7 +25,7 @@ export interface Message {
   }
   isComplete?: boolean
   canContinue?: boolean
-  mode?: 'general' | 'school-record' // 메시지에 모드 정보 저장
+  mode?: 'general' | 'school-record' | 'school-record-review' // 메시지에 모드 정보 저장
   category?: 'subject-detail' | 'activity' | 'behavior' | null // 카테고리 정보 저장
   options?: {
     subject?: string
@@ -149,7 +149,7 @@ export default function ChatInterface() {
 
   const sendMessage = async (
     content: string, 
-    mode: 'general' | 'school-record' = 'general', 
+    mode: 'general' | 'school-record' | 'school-record-review' = 'general', 
     category: 'subject-detail' | 'activity' | 'behavior' | null = null, 
     options?: { subject?: string; level?: string },
     isContinuation: boolean = false
@@ -392,11 +392,11 @@ export default function ChatInterface() {
   }
 
   // 연속 요청 함수
-  const continueMessage = async (messageId: string, providedMode?: 'general' | 'school-record', providedCategory?: 'subject-detail' | 'activity' | 'behavior' | null) => {
+  const continueMessage = async (messageId: string, providedMode?: 'general' | 'school-record' | 'school-record-review', providedCategory?: 'subject-detail' | 'activity' | 'behavior' | null) => {
     if (isLoading) return
 
     // 메시지에서 모드와 카테고리 추출 (제공된 값이 없으면)
-    let targetMode: 'general' | 'school-record' = 'general'
+    let targetMode: 'general' | 'school-record' | 'school-record-review' = 'general'
     let targetCategory: 'subject-detail' | 'activity' | 'behavior' | null = null
     let targetOptions: { subject?: string; level?: string } | undefined = undefined
     
