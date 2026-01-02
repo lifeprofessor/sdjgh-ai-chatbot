@@ -35,7 +35,7 @@ function TypewriterText({ text, isStreaming }: { text: string, isStreaming?: boo
             const match = /language-(\w+)/.exec(className || '')
             const isInline = !match
             return isInline ? (
-              <code className="bg-gray-100 text-red-600 px-1 py-0.5 rounded text-sm font-mono" {...props}>
+              <code className="bg-pink-50 text-pink-800 px-1.5 py-0.5 rounded text-sm font-mono whitespace-pre-wrap break-words inline-block" {...props}>
                 {children}
               </code>
             ) : (
@@ -55,6 +55,12 @@ function TypewriterText({ text, isStreaming }: { text: string, isStreaming?: boo
             <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
               {children}
             </a>
+          ),
+          // 단락 스타일링 - 줄바꿈 개선
+          p: ({ children }) => (
+            <p className="my-2 break-words whitespace-pre-wrap leading-relaxed">
+              {children}
+            </p>
           ),
           // 제목 스타일링
           h1: ({ children }) => <h1 className="text-xl font-bold my-3">{children}</h1>,
