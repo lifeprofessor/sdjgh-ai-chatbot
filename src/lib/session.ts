@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers'
-import { User } from './supabase'
+import { User } from './db'
 
 export interface SessionUser {
   id: number

@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.3",
-    "@supabase/supabase-js": "^2.75.0",
+    "@neondatabase/serverless": "^0.9.5",
     "@types/bcryptjs": "^2.4.6",
     "bcryptjs": "^3.0.2",
     "highlight.js": "^11.11.1",
@@ -26,6 +26,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.0.1",
+    "baseline-browser-mapping": "^2.10.13",
     "eslint": "^8",
     "eslint-config-next": "14.2.5",
     "postcss": "^8",
